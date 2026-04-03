@@ -64,3 +64,4 @@ Podfile.lock
 # Generated files
 DerivedData/
 
+build/
