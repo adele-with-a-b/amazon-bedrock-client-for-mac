@@ -91,8 +91,8 @@ class MCPManager: ObservableObject {
             UserDefaults.standard.set(crashCount, forKey: Self.mcpCrashCountKey)
             logger.warning("Detected crash while MCP was running. Crash count: \(crashCount)")
             
-            if crashCount >= 1 {
-                // Disable MCP after 1 crash
+            if crashCount >= 3 {
+                // Disable MCP after 3 consecutive crashes
                 logger.error("MCP disabled due to crash")
                 UserDefaults.standard.set(false, forKey: "mcpEnabled")
                 UserDefaults.standard.set(true, forKey: Self.mcpDisabledDueToCrashKey)
