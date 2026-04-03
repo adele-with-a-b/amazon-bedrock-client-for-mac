@@ -81,24 +81,8 @@ class MCPManager: ObservableObject {
     private static let mcpDisabledDueToCrashKey = "mcpDisabledDueToCrash"
     
     private init() {
-        // Check for previous crash and disable MCP if needed
-        let wasRunning = UserDefaults.standard.bool(forKey: Self.mcpRunningKey)
-        var crashCount = UserDefaults.standard.integer(forKey: Self.mcpCrashCountKey)
-        
-        if wasRunning {
-            // App crashed while MCP was running
-            crashCount += 1
-            UserDefaults.standard.set(crashCount, forKey: Self.mcpCrashCountKey)
-            logger.warning("Detected crash while MCP was running. Crash count: \(crashCount)")
-            
-            if crashCount >= 3 {
-                // Disable MCP after 3 consecutive crashes
-                logger.error("MCP disabled due to crash")
-                UserDefaults.standard.set(false, forKey: "mcpEnabled")
-                UserDefaults.standard.set(true, forKey: Self.mcpDisabledDueToCrashKey)
-                UserDefaults.standard.set(false, forKey: Self.mcpRunningKey)
-            }
-        }
+        // Clear stale running flag from previous session
+        UserDefaults.standard.set(false, forKey: Self.mcpRunningKey)
         
         // Load mcpEnabled from UserDefaults
         self.mcpEnabled = UserDefaults.standard.bool(forKey: "mcpEnabled")
