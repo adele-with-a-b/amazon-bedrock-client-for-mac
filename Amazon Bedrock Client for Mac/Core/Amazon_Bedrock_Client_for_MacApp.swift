@@ -14,6 +14,15 @@ struct CustomLogHandler: LogHandler {
     var metadata: Logger.Metadata = [:]
     let label: String
     
+    /// Shared file handle for log output
+    private static let logFileHandle: FileHandle? = {
+        let logPath = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Desktop/bedrock.log").path
+        // Truncate on launch
+        FileManager.default.createFile(atPath: logPath, contents: nil)
+        return FileHandle(forWritingAtPath: logPath)
+    }()
+    
     subscript(metadataKey key: String) -> Logger.Metadata.Value? {
         get { metadata[key] }
         set { metadata[key] = newValue }
@@ -41,6 +50,12 @@ struct CustomLogHandler: LogHandler {
         // Standardized log message format with source included
         let logMessage = "[\(timestamp)] [\(level)] [\(fileName):\(line)] \(message)\(metadataString)"
         print(logMessage)
+        
+        // Write to log file
+        if let data = (logMessage + "\n").data(using: .utf8) {
+            Self.logFileHandle?.seekToEndOfFile()
+            Self.logFileHandle?.write(data)
+        }
     }
     
     // For backward compatibility (can be removed later)
