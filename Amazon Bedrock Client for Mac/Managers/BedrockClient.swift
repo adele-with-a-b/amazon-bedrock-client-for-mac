@@ -37,7 +37,20 @@ class BackendModel: ObservableObject {
         } catch {
             logger.error("Failed to initialize Backend: \(error)")
             
-            // Create Backend with default credentials when an error occurs
+            // If we have an API key, use it despite credential resolution failure
+            let apiKey = SettingManager.shared.apiKey
+            if !apiKey.isEmpty {
+                let region = SettingManager.shared.selectedRegion.rawValue
+                self.backend = Backend(
+                    region: region,
+                    profile: "default",
+                    endpoint: SettingManager.shared.endpoint,
+                    runtimeEndpoint: SettingManager.shared.runtimeEndpoint,
+                    apiKey: apiKey
+                )
+                self.isLoggedIn = true
+                logger.info("Backend initialized with API key after credential failure")
+            } else {
             let defaultCredentialProvider: any AWSCredentialIdentityResolver
             if let chain = try? DefaultAWSCredentialIdentityResolverChain() {
                 defaultCredentialProvider = chain
@@ -90,6 +103,7 @@ class BackendModel: ObservableObject {
             }
             
             self.isLoggedIn = false
+            } // end else (no API key)
         }
         setupObservers()
     }
