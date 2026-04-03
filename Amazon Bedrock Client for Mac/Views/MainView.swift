@@ -179,10 +179,11 @@ struct MainView: View {
                     // Mark as initialized after models are loaded
                     self.hasInitialized = true
                     
-                    // Only auto-create chat if we have existing chats (user has used the app before)
-                    // or if user explicitly requests it
+                    // Select the most recent existing chat on startup
                     if selection == nil && !chatManager.chats.isEmpty {
-                        createNewChatIfNeeded()
+                        if let mostRecent = chatManager.chats.first {
+                            selection = .chat(mostRecent)
+                        }
                     }
                 }
             } catch {
