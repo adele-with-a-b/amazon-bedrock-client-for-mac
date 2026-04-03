@@ -66,6 +66,7 @@ class SettingManager: ObservableObject {
     @Published var selectedProfile: String { didSet { saveSettings() } }
     @Published var endpoint: String { didSet { saveSettings() } }
     @Published var runtimeEndpoint: String { didSet { saveSettings() } }
+    @Published var apiKey: String { didSet { saveSettings() } }
 
     @Published var isSSOLoggedIn: Bool = false
     @Published var profiles: [ProfileInfo] = []
@@ -139,6 +140,7 @@ class SettingManager: ObservableObject {
         self.selectedProfile = UserDefaults.standard.string(forKey: "selectedProfile") ?? "default"
         self.endpoint = UserDefaults.standard.string(forKey: "endpoint") ?? ""
         self.runtimeEndpoint = UserDefaults.standard.string(forKey: "runtimeEndpoint") ?? ""
+        self.apiKey = UserDefaults.standard.string(forKey: "apiKey") ?? ""
         
         // Set default hotkey values if not already set
         if UserDefaults.standard.object(forKey: "hotkeyModifiers") == nil {
@@ -239,6 +241,7 @@ class SettingManager: ObservableObject {
         UserDefaults.standard.set(selectedProfile, forKey: "selectedProfile")
         UserDefaults.standard.set(endpoint, forKey: "endpoint")
         UserDefaults.standard.set(runtimeEndpoint, forKey: "runtimeEndpoint")
+        UserDefaults.standard.set(apiKey, forKey: "apiKey")
         
         logger.info("Settings saved: \(selectedRegion.rawValue), \(selectedProfile)")
     }

@@ -17,6 +17,7 @@ import Foundation
 import Logging
 import SmithyIdentity
 import SmithyIdentityAPI
+import SmithyHTTPAuth
 import SwiftUI
 import Smithy
 
@@ -100,6 +101,17 @@ class BackendModel: ObservableObject {
         let endpoint = SettingManager.shared.endpoint
         let runtimeEndpoint = SettingManager.shared.runtimeEndpoint
         let profiles = SettingManager.shared.profiles
+        let apiKey = SettingManager.shared.apiKey
+        
+        if !apiKey.isEmpty {
+            return Backend(
+                region: region,
+                profile: profile,
+                endpoint: endpoint,
+                runtimeEndpoint: runtimeEndpoint,
+                apiKey: apiKey
+            )
+        }
         
         return try Backend(
             region: region,
@@ -115,10 +127,12 @@ class BackendModel: ObservableObject {
         let profilePublisher = SettingManager.shared.$selectedProfile
         let endpointPublisher = SettingManager.shared.$endpoint
         let runtimeEndpointPublisher = SettingManager.shared.$runtimeEndpoint
+        let apiKeyPublisher = SettingManager.shared.$apiKey
         
         Publishers.CombineLatest(regionPublisher, profilePublisher)
             .combineLatest(endpointPublisher)
             .combineLatest(runtimeEndpointPublisher)
+            .combineLatest(apiKeyPublisher)
             .debounce(for: .seconds(0.5), scheduler: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.refreshBackend()
@@ -139,15 +153,27 @@ class BackendModel: ObservableObject {
             let endpoint = SettingManager.shared.endpoint
             let runtimeEndpoint = SettingManager.shared.runtimeEndpoint
             let profiles = SettingManager.shared.profiles
+            let apiKey = SettingManager.shared.apiKey
             
             do {
-                let newBackend = try Backend(
-                    region: region,
-                    profile: profile,
-                    endpoint: endpoint,
-                    runtimeEndpoint: runtimeEndpoint,
-                    profiles: profiles
-                )
+                let newBackend: Backend
+                if !apiKey.isEmpty {
+                    newBackend = Backend(
+                        region: region,
+                        profile: profile,
+                        endpoint: endpoint,
+                        runtimeEndpoint: runtimeEndpoint,
+                        apiKey: apiKey
+                    )
+                } else {
+                    newBackend = try Backend(
+                        region: region,
+                        profile: profile,
+                        endpoint: endpoint,
+                        runtimeEndpoint: runtimeEndpoint,
+                        profiles: profiles
+                    )
+                }
                 self.backend = newBackend
                 self.logger.info("Backend refreshed successfully")
             } catch {
@@ -165,6 +191,7 @@ class Backend: Equatable, @unchecked Sendable {
     let profile: String
     let endpoint: String
     let runtimeEndpoint: String
+    let apiKey: String
     let logger = Logger(label: "Backend")
     public let awsCredentialIdentityResolver: any AWSCredentialIdentityResolver
     
@@ -193,6 +220,7 @@ class Backend: Equatable, @unchecked Sendable {
         self.profile = profile
         self.endpoint = endpoint
         self.runtimeEndpoint = runtimeEndpoint
+        self.apiKey = ""
         
         logger.info("Backend init called with \(profiles.count) profiles: \(profiles.map { $0.name }.joined(separator: ", "))")
         logger.info("Looking for profile: \(profile)")
@@ -250,6 +278,7 @@ class Backend: Equatable, @unchecked Sendable {
         self.profile = profile
         self.endpoint = endpoint
         self.runtimeEndpoint = runtimeEndpoint
+        self.apiKey = ""
         self.awsCredentialIdentityResolver = awsCredentialIdentityResolver
         
         logger.info(
@@ -257,7 +286,37 @@ class Backend: Equatable, @unchecked Sendable {
         )
     }
     
+    /// Initializes Backend with a Bedrock API key (bearer token auth)
+    init(region: String, profile: String, endpoint: String, runtimeEndpoint: String, apiKey: String) {
+        self.region = region
+        self.profile = profile
+        self.endpoint = endpoint
+        self.runtimeEndpoint = runtimeEndpoint
+        self.apiKey = apiKey
+        // Credential resolver is unused with API key auth, but property is required
+        self.awsCredentialIdentityResolver = StaticAWSCredentialIdentityResolver(
+            AWSCredentialIdentity(accessKey: "", secret: "")
+        )
+        
+        logger.info(
+            "Backend initialized with API key, region: \(region)"
+        )
+    }
+    
     private func createBedrockClient() throws -> BedrockClient {
+        if !apiKey.isEmpty {
+            let config = try BedrockClient.BedrockClientConfiguration(
+                region: self.region,
+                signingRegion: self.region,
+                endpoint: self.endpoint.isEmpty ? nil : self.endpoint,
+                authSchemes: [BearerTokenAuthScheme()],
+                bearerTokenIdentityResolver: StaticBearerTokenIdentityResolver(
+                    SmithyIdentity.BearerTokenIdentity(token: self.apiKey)
+                )
+            )
+            logger.info("Bedrock client created with API key auth, region: \(self.region)")
+            return BedrockClient(config: config)
+        }
         let config = try BedrockClient.BedrockClientConfiguration(
             awsCredentialIdentityResolver: self.awsCredentialIdentityResolver,
             region: self.region,
@@ -270,6 +329,19 @@ class Backend: Equatable, @unchecked Sendable {
     }
     
     private func createBedrockRuntimeClient() throws -> BedrockRuntimeClient {
+        if !apiKey.isEmpty {
+            let config = try BedrockRuntimeClient.BedrockRuntimeClientConfiguration(
+                region: self.region,
+                signingRegion: self.region,
+                endpoint: self.runtimeEndpoint.isEmpty ? nil : self.runtimeEndpoint,
+                authSchemes: [BearerTokenAuthScheme()],
+                bearerTokenIdentityResolver: StaticBearerTokenIdentityResolver(
+                    SmithyIdentity.BearerTokenIdentity(token: self.apiKey)
+                )
+            )
+            logger.info("Bedrock Runtime client created with API key auth, region: \(self.region)")
+            return BedrockRuntimeClient(config: config)
+        }
         let config = try BedrockRuntimeClient.BedrockRuntimeClientConfiguration(
             awsCredentialIdentityResolver: self.awsCredentialIdentityResolver,
             region: self.region,

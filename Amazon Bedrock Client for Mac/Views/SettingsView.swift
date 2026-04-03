@@ -305,6 +305,8 @@ struct DeveloperSettingsView: View {
     @State private var showingAddServerSheet = false
     @State private var tempEndpoint: String = ""
     @State private var tempRuntimeEndpoint: String = ""
+    @State private var tempApiKey: String = ""
+    @State private var showApiKey: Bool = false
     
     var body: some View {
         Form {
@@ -414,6 +416,52 @@ struct DeveloperSettingsView: View {
             
             // Advanced Settings
             Section("Advanced") {
+                LabeledContent("Bedrock API Key") {
+                    HStack {
+                        if showApiKey {
+                            TextField("ABSK...", text: $tempApiKey)
+                                .textFieldStyle(.roundedBorder)
+                                .onAppear { tempApiKey = settingsManager.apiKey }
+                                .onSubmit {
+                                    settingsManager.apiKey = tempApiKey
+                                }
+                        } else {
+                            SecureField("ABSK...", text: $tempApiKey)
+                                .textFieldStyle(.roundedBorder)
+                                .onAppear { tempApiKey = settingsManager.apiKey }
+                                .onSubmit {
+                                    settingsManager.apiKey = tempApiKey
+                                }
+                        }
+                        Button {
+                            showApiKey.toggle()
+                        } label: {
+                            Image(systemName: showApiKey ? "eye.slash" : "eye")
+                        }
+                        .buttonStyle(.borderless)
+                        if !tempApiKey.isEmpty {
+                            Button {
+                                tempApiKey = ""
+                                settingsManager.apiKey = ""
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.borderless)
+                        }
+                    }
+                }
+                
+                if !settingsManager.apiKey.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "key.fill")
+                            .foregroundStyle(.green)
+                        Text("Using API key authentication (bearer token)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                
                 LabeledContent("Default Directory") {
                     HStack {
                         TextField("", text: $settingsManager.defaultDirectory)
