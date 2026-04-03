@@ -1008,7 +1008,7 @@ class MCPManager: ObservableObject {
         for item in content {
             do {
                 switch item {
-                case .text(let text):
+                case .text(let text, _, _):
                     resultContent.append([
                         "type": "text",
                         "text": text
@@ -1046,11 +1046,13 @@ class MCPManager: ObservableObject {
                         "description": "Generated audio"
                     ])
 
-                case .resource(let uri, let mimeType, let text):
+                case .resource(let resource, _, _):
+                    let uri = resource.uri
+                    let text = resource.text
                     var resourceResult: [String: Any] = [
                         "type": "resource",
                         "uri": uri,
-                        "mimeType": mimeType
+                        "mimeType": resource.mimeType ?? "application/octet-stream"
                     ]
                     
                     if let text = text {
