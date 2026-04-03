@@ -310,7 +310,7 @@ class Backend: Equatable, @unchecked Sendable {
                 signingRegion: self.region,
                 endpoint: self.endpoint.isEmpty ? nil : self.endpoint,
                 authSchemes: [BearerTokenAuthScheme()],
-                bearerTokenIdentityResolver: StaticBearerTokenIdentityResolver(
+                bearerTokenIdentityResolver: StaticBearerTokenIdentityResolver(token: 
                     SmithyIdentity.BearerTokenIdentity(token: self.apiKey)
                 )
             )
@@ -335,7 +335,7 @@ class Backend: Equatable, @unchecked Sendable {
                 signingRegion: self.region,
                 endpoint: self.runtimeEndpoint.isEmpty ? nil : self.runtimeEndpoint,
                 authSchemes: [BearerTokenAuthScheme()],
-                bearerTokenIdentityResolver: StaticBearerTokenIdentityResolver(
+                bearerTokenIdentityResolver: StaticBearerTokenIdentityResolver(token: 
                     SmithyIdentity.BearerTokenIdentity(token: self.apiKey)
                 )
             )
