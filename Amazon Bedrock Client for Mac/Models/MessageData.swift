@@ -204,7 +204,8 @@ struct MessageData: Identifiable, Equatable, Codable {
                lhs.documentNames == rhs.documentNames &&
                lhs.pastedTexts == rhs.pastedTexts &&
                lhs.videoUrl == rhs.videoUrl &&
-               lhs.videoS3Uri == rhs.videoS3Uri
+               lhs.videoS3Uri == rhs.videoS3Uri &&
+               lhs.usageInfo == rhs.usageInfo
     }
 }
 
