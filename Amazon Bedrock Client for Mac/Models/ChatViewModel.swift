@@ -513,15 +513,18 @@ class ChatViewModel: ObservableObject {
         isMessageBarDisabled = false
         
         // Write cumulative credits to the last assistant message
-        // Small yield to let any pending usage callbacks land
-        try? await Task.sleep(nanoseconds: 100_000_000)
-        if cumulativeCredits > 0 {
-            let usage = formatCumulativeUsage()
-            if let index = messages.lastIndex(where: { $0.user != "User" && $0.user != "ToolResult" }) {
-                messages[index].usageInfo = usage
-            }
-            usageHandler?(usage)
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        logger.info("Credits check: cumulativeCredits=\(cumulativeCredits), messages.count=\(messages.count)")
+        let usage = formatCumulativeUsage()
+        logger.info("Formatted usage: \(usage)")
+        if let index = messages.lastIndex(where: { $0.user != "User" && $0.user != "ToolResult" }) {
+            logger.info("Writing usage to message index \(index), user=\(messages[index].user)")
+            messages[index].usageInfo = usage
+            logger.info("usageInfo after write: \(messages[index].usageInfo ?? "nil")")
+        } else {
+            logger.info("No matching message found for credits")
         }
+        usageHandler?(usage)
         
         chatManager.setIsLoading(false, for: chatId)
     }
