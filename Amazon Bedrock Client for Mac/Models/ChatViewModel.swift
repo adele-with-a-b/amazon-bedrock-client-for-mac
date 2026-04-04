@@ -205,27 +205,28 @@ class ChatViewModel: ObservableObject {
     // Usage handler for displaying token usage information
     var usageHandler: ((String) -> Void)?
     
-    // Format usage information for display
+    // Track response timing
+    var responseStartTime: Date?
+    
+    // Format usage as credits + time like "Credits: 1.15 • Time: 15s"
     private func formatUsageString(_ usage: UsageInfo) -> String {
-        var parts: [String] = []
+        let inputTokens = Double(usage.inputTokens ?? 0)
+        let outputTokens = Double(usage.outputTokens ?? 0)
+        let cacheRead = Double(usage.cacheReadInputTokens ?? 0)
         
-        if let input = usage.inputTokens {
-            parts.append("Input: \(input)")
+        // Credits: input $3/MTok, cache read $0.30/MTok, output $15/MTok (Claude Sonnet-class pricing)
+        let credits = (inputTokens - cacheRead) * 3.0 / 1_000_000
+            + cacheRead * 0.30 / 1_000_000
+            + outputTokens * 15.0 / 1_000_000
+        
+        let creditsStr = String(format: "%.2f", credits)
+        
+        var result = "Credits: $\(creditsStr)"
+        if let start = responseStartTime {
+            let elapsed = Int(Date().timeIntervalSince(start))
+            result += " • Time: \(elapsed)s"
         }
-        
-        if let output = usage.outputTokens {
-            parts.append("Output: \(output)")
-        }
-        
-        if let cacheRead = usage.cacheReadInputTokens, cacheRead > 0 {
-            parts.append("Cache Read: \(cacheRead)")
-        }
-        
-        if let cacheWrite = usage.cacheCreationInputTokens, cacheWrite > 0 {
-            parts.append("Cache Write: \(cacheWrite)")
-        }
-        
-        return parts.joined(separator: " • ")
+        return result
     }
     
     // MARK: - Initialization
@@ -425,6 +426,7 @@ class ChatViewModel: ObservableObject {
     private func sendMessageAsync() async {
         chatManager.setIsLoading(true, for: chatId)
         isMessageBarDisabled = true
+        responseStartTime = Date()
         
         let tempInput = userInput
         Task {
