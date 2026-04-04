@@ -258,12 +258,13 @@ struct ChatView: View {
         return ScrollView {
             messageList
         }
+        .defaultScrollAnchor(.bottom)
         .modifier(ScrollEdgeEffectModifier())
         .onChange(of: viewModel.messages) { _, _ in
-            // If the user was at bottom and not searching, wait briefly for layout and scroll down again
+            // If the user was at bottom and not searching, keep scrolled to bottom
             if isAtBottom && searchQuery.isEmpty {
                 Task {
-                    try? await Task.sleep(nanoseconds: 50_000_000) // 0.05s
+                    try? await Task.sleep(nanoseconds: 50_000_000)
                     proxy.scrollTo("Bottom", anchor: .bottom)
                 }
             }
@@ -277,10 +278,7 @@ struct ChatView: View {
             }
         }
         .onChange(of: viewModel.chatId) { _, _ in
-            scrollToBottomRepeatedly(proxy: proxy)
-        }
-        .onAppear {
-            scrollToBottomRepeatedly(proxy: proxy)
+            isAtBottom = true
         }
     }
     
@@ -510,18 +508,6 @@ struct ChatView: View {
     private func handleBottomAnchorChange(_ bottomY: CGFloat, containerHeight: CGFloat) {
         let threshold: CGFloat = 50
         isAtBottom = (bottomY <= containerHeight + threshold)
-    }
-    
-    /// Scroll to bottom repeatedly to handle lazy layout of long conversations
-    private func scrollToBottomRepeatedly(proxy: ScrollViewProxy) {
-        for delay in [0.1, 0.3, 0.6, 1.0, 1.5] {
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                proxy.scrollTo("Bottom", anchor: .bottom)
-            }
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
-            isAtBottom = true
-        }
     }
     
     private func jumpToFirstMatch(_ result: SearchResult, proxy: ScrollViewProxy) {
