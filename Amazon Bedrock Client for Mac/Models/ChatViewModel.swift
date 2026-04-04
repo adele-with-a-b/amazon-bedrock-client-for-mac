@@ -212,11 +212,12 @@ class ChatViewModel: ObservableObject {
     // Track response timing
     var responseStartTime: Date?
     
-    // Cumulative credits for the current turn (accessed from @Sendable closures)
-    private let _credits = OSAllocatedUnfairLock(initialState: 0.0)
+    // Cumulative credits for the current turn (thread-safe)
+    private var _creditsLock = os_unfair_lock()
+    private var _creditsValue: Double = 0.0
     private var cumulativeCredits: Double {
-        get { _credits.withLock { $0 } }
-        set { _credits.withLock { $0 = newValue } }
+        get { os_unfair_lock_lock(&_creditsLock); defer { os_unfair_lock_unlock(&_creditsLock) }; return _creditsValue }
+        set { os_unfair_lock_lock(&_creditsLock); _creditsValue = newValue; os_unfair_lock_unlock(&_creditsLock) }
     }
     
     // Calculate credits from usage (does NOT format, just returns dollar amount)
@@ -974,7 +975,8 @@ class ChatViewModel: ObservableObject {
             toolConfig: toolConfig,
             usageHandler: { @Sendable [weak self] usage in
                 guard let self = self else { return }
-                self._credits.withLock { $0 += self.creditsFromUsage(usage) }
+                let credits = self.creditsFromUsage(usage)
+                self.cumulativeCredits += credits
             }
         ) {
             // Check for tool use in each chunk
