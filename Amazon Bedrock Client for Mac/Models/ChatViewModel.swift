@@ -888,7 +888,7 @@ class ChatViewModel: ObservableObject {
         if turnCount >= maxTurns {
             logger.info("Maximum number of tool use turns (\(maxTurns)) reached")
             let limitMsg = MessageData(
-                id: UUID().uuidString,
+                id: UUID(),
                 text: "⚠️ Reached the tool use limit (\(maxTurns) turns). You can continue the conversation or increase the limit in Settings.",
                 user: chatModel.name,
                 isError: false,
