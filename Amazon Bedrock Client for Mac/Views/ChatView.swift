@@ -269,14 +269,23 @@ struct ChatView: View {
             }
         }
         // Scroll to bottom whenever the count of messages changes (but not during search)
-        .onChange(of: viewModel.messages.count) { oldCount, newCount in
-            if searchQuery.isEmpty {
-                // On initial load (0 -> N), use longer delay for layout
-                let delay = oldCount == 0 ? 0.3 : 0.05
-                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+        .onChange(of: viewModel.messages.count) { _, _ in
+            if searchQuery.isEmpty && isAtBottom {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                     proxy.scrollTo("Bottom", anchor: .bottom)
-                    if oldCount == 0 { isAtBottom = true }
                 }
+            }
+        }
+        .onChange(of: viewModel.chatId) { _, _ in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                proxy.scrollTo("Bottom", anchor: .bottom)
+                isAtBottom = true
+            }
+        }
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                proxy.scrollTo("Bottom", anchor: .bottom)
+                isAtBottom = true
             }
         }
     }
