@@ -468,7 +468,7 @@ struct ExpandableMarkdownItem: View {
                 .fill(
                     colorScheme == .dark ?
                     Color.white.opacity(0.05) :
-                        Color.black.opacity(0.03)
+                        Color(nsColor: NSColor.quaternarySystemFill)
                 )
         )
         .overlay(
@@ -476,7 +476,7 @@ struct ExpandableMarkdownItem: View {
                 .stroke(
                     colorScheme == .dark ?
                     Color.white.opacity(0.1) :
-                        Color.black.opacity(0.06),
+                        Color.gray.opacity(0.15),
                     lineWidth: 0.5
                 )
         )
@@ -659,8 +659,8 @@ struct MessageView: View {
     @ViewBuilder
     private func toolChipView(_ toolUse: ToolInfo) -> some View {
         let summary = toolUseSummary(toolUse)
-        let bgColor = colorScheme == .dark ? Color.green.opacity(0.05) : Color.green.opacity(0.03)
-        let borderColor = colorScheme == .dark ? Color.green.opacity(0.15) : Color.green.opacity(0.1)
+        let bgColor = colorScheme == .dark ? Color.white.opacity(0.05) : Color(nsColor: NSColor.quaternarySystemFill)
+        let borderColor = colorScheme == .dark ? Color.white.opacity(0.1) : Color.gray.opacity(0.15)
         let iconColor = colorScheme == .dark ? Color.green.opacity(0.7) : Color.green.opacity(0.8)
         
         HStack(alignment: .top, spacing: 6) {
