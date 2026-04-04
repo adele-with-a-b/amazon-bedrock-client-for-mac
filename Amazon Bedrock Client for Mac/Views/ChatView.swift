@@ -217,7 +217,31 @@ struct ChatView: View {
                 .onChange(of: currentMatchIndex) { _, idx in
                     jumpToMatchIndex(idx, proxy: proxy)
                 }
+                .onChange(of: messagesLoaded) { _, loaded in
+                    if loaded {
+                        debugLog("messagesLoaded=true, msgs=\(viewModel.messages.count), scheduling 5s scroll")
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                            debugLog("5s timer fired. isAtBottom=\(isAtBottom), msgs=\(viewModel.messages.count)")
+                            debugLog("About to scrollTo Bottom")
+                            proxy.scrollTo("Bottom", anchor: .bottom)
+                            debugLog("scrollTo Bottom done")
+                        }
+                    }
+                }
             }
+        }
+    }
+    
+    private func debugLog(_ msg: String) {
+        let ts = ISO8601DateFormatter().string(from: Date())
+        let line = "[\(ts)] \(msg)\n"
+        let path = "/tmp/bedrock_scroll.log"
+        if let fh = FileHandle(forWritingAtPath: path) {
+            fh.seekToEndOfFile()
+            fh.write(line.data(using: .utf8)!)
+            fh.closeFile()
+        } else {
+            FileManager.default.createFile(atPath: path, contents: line.data(using: .utf8))
         }
     }
     
