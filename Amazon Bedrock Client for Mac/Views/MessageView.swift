@@ -634,23 +634,26 @@ struct MessageView: View {
         VStack(spacing: 8) {
             // Thinking shown inline (not collapsed)
             if let thinking = message.thinking, !thinking.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    LazyMarkdownView(
-                        text: thinking,
-                        fontSize: fontSize + adjustedFontSize - 2,
-                        searchRanges: searchResult?.ranges ?? []
+                let trimmed = Self.trimThinkingPreamble(thinking)
+                if !trimmed.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        LazyMarkdownView(
+                            text: trimmed,
+                            fontSize: fontSize + adjustedFontSize - 2,
+                            searchRanges: searchResult?.ranges ?? []
+                        )
+                        .foregroundColor(.secondary)
+                        .opacity(0.8)
+                    }
+                    .padding(10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(colorScheme == .dark ?
+                                  Color.white.opacity(0.03) :
+                                  Color(nsColor: NSColor.quaternarySystemFill).opacity(0.5))
                     )
-                    .foregroundColor(.secondary)
-                    .opacity(0.8)
+                    .padding(.vertical, 2)
                 }
-                .padding(10)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(colorScheme == .dark ?
-                              Color.white.opacity(0.03) :
-                              Color(nsColor: NSColor.quaternarySystemFill).opacity(0.5))
-                )
-                .padding(.vertical, 2)
             }
             
             // Main message content (skip if empty - e.g., video-only messages)
@@ -957,6 +960,25 @@ struct MessageView: View {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+    
+    /// Strip repetitive "The user is asking/wants/says..." preamble from thinking text
+    private static func trimThinkingPreamble(_ text: String) -> String {
+        let patterns = [
+            #"^(?:(?:The|OK,?\s*(?:so\s*)?the)\s+user\s+(?:is\s+)?(?:asking|saying|wanting|requesting|looking|trying|wondering|inquiring|mentioning|describing|explaining|talking|referring|pointing)[\s\S]*?(?:\.\s*|\n\n))"#,
+            #"^(?:Let me (?:think|consider|analyze|understand|process|look|figure|work|break)[\s\S]*?(?:\.\s*|\n\n))"#,
+            #"^(?:(?:So|OK|Okay|Alright|Hmm),?\s+(?:the user|they|this)[\s\S]*?(?:\.\s*|\n\n))"#,
+        ]
+        var result = text
+        for pattern in patterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
+               let match = regex.firstMatch(in: result, range: NSRange(result.startIndex..., in: result)) {
+                let end = result.index(result.startIndex, offsetBy: match.range.upperBound)
+                result = String(result[end...]).trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+                break
+            }
+        }
+        return result
     }
     
     // MARK: - Search Match Scrolling
