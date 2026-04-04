@@ -37,6 +37,7 @@ struct ChatView: View {
     @StateObject private var transcribeManager = TranscribeStreamingManager()
     @StateObject private var searchEngine = SearchEngine()
     @ObservedObject var backendModel: BackendModel
+    @ObservedObject private var templateManager = PromptTemplateManager.shared
     
     @FocusState private var isSearchFocused: Bool
     @SwiftUI.Environment(\.colorScheme) private var colorScheme: ColorScheme
@@ -82,6 +83,7 @@ struct ChatView: View {
             
             VStack(spacing: 0) {
                 placeholderView
+                agentBanner
                 messageScrollView
                 messageBarView
             }
@@ -196,6 +198,24 @@ struct ChatView: View {
     }
     
     // MARK: - Placeholder
+    
+    @ViewBuilder
+    private var agentBanner: some View {
+        if let template = templateManager.selectedTemplate, template.isAgent {
+            HStack(spacing: 6) {
+                Image(systemName: "person.crop.circle.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                Text(template.name)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 4)
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity)
+            .background(.ultraThinMaterial)
+        }
+    }
     
     private var placeholderView: some View {
         VStack {
