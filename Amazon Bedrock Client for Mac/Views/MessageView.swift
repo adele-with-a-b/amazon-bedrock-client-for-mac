@@ -555,10 +555,6 @@ struct MessageView: View {
         ZStack(alignment: .bottomTrailing) {
             // Main content
             VStack(alignment: .leading, spacing: 4) {
-                // Message header with user name and timestamp
-                messageHeader
-                    .padding(.bottom, 2)
-                
                 // Message content with images and markdown
                 assistantMessageContent
             }
@@ -643,23 +639,30 @@ struct MessageView: View {
                 )
             }
             
-            // Tool use information display - compact inline style
+            // Tool use information display - show what's actually being executed
             if let toolUse = message.toolUse {
-                HStack(spacing: 6) {
-                    Image(systemName: "wrench.and.screwdriver")
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "terminal")
                         .font(.system(size: fontSize + adjustedFontSize - 4))
+                        .foregroundColor(colorScheme == .dark ? Color.green.opacity(0.7) : Color.green.opacity(0.8))
+                    Text(toolUseSummary(toolUse))
+                        .font(.system(size: fontSize + adjustedFontSize - 2, design: .monospaced))
                         .foregroundColor(.secondary)
-                    Text(toolUse.name)
-                        .font(.system(size: fontSize + adjustedFontSize - 2, weight: .medium, design: .monospaced))
-                        .foregroundColor(.secondary)
+                        .lineLimit(2)
                 }
-                .padding(.vertical, 4)
-                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .padding(.horizontal, 10)
                 .background(
                     RoundedRectangle(cornerRadius: 6)
                         .fill(colorScheme == .dark ?
-                              Color.white.opacity(0.05) :
-                              Color.black.opacity(0.03))
+                              Color.green.opacity(0.05) :
+                              Color.green.opacity(0.03))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(colorScheme == .dark ?
+                                Color.green.opacity(0.15) :
+                                Color.green.opacity(0.1), lineWidth: 0.5)
                 )
                 .padding(.vertical, 2)
             }
@@ -676,6 +679,32 @@ struct MessageView: View {
         }
     }
     
+    /// Extract a human-readable summary from tool input
+    private func toolUseSummary(_ toolUse: ToolUseInfo) -> String {
+        // Try to extract the most meaningful field from the input
+        if case .object(let obj) = toolUse.input {
+            // Shell commands: show the command
+            if let cmd = obj["command"], case .string(let s) = cmd {
+                return s
+            }
+            // Search/fetch: show query or url
+            if let q = obj["query"], case .string(let s) = q {
+                return "🔍 \(s)"
+            }
+            if let u = obj["url"], case .string(let s) = u {
+                return "🌐 \(s)"
+            }
+            // File operations: show path
+            if let p = obj["path"], case .string(let s) = p {
+                return "\(toolUse.name): \(s)"
+            }
+            // Git: show repo_path
+            if let p = obj["repo_path"], case .string(let s) = p {
+                return "\(toolUse.name): \(s)"
+            }
+        }
+        return toolUse.name
+    }
     // Helper function to format tool input parameters as JSON
     private func formatToolInput(_ input: JSONValue) -> String {
         return "```json\n\(prettyPrintJSON(input, indent: 0))\n```"
@@ -751,14 +780,14 @@ struct MessageView: View {
         // Cache complex views to avoid unnecessary recalculations
         let messageBackground = RoundedRectangle(cornerRadius: 16)
             .fill(colorScheme == .dark ?
-                  Color.white.opacity(0.08) :
-                  Color.black.opacity(0.04))
+                  Color.blue.opacity(0.12) :
+                  Color.blue.opacity(0.08))
         
         let messageBorder = RoundedRectangle(cornerRadius: 16)
             .stroke(
                 colorScheme == .dark ?
-                Color.white.opacity(0.12) :
-                Color.black.opacity(0.08),
+                Color.blue.opacity(0.2) :
+                Color.blue.opacity(0.15),
                 lineWidth: 0.5
             )
         
@@ -881,10 +910,6 @@ struct MessageView: View {
     
     private var messageHeader: some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
-            Text(message.user == "User" ? "You" : "Assistant")
-                .font(.system(size: fontSize + adjustedFontSize, weight: .semibold))
-                .foregroundColor(.primary)
-            
             Text(format(date: message.sentTime))
                 .font(.system(size: fontSize + adjustedFontSize - 2))
                 .foregroundColor(.secondary)
