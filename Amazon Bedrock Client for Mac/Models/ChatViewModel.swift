@@ -243,6 +243,9 @@ class ChatViewModel: ObservableObject {
             let elapsed = Int(Date().timeIntervalSince(start))
             result += " • Time: \(elapsed)s"
         }
+        // Show which model actually responded
+        let modelName = routedModelId.split(separator: ".").last.map(String.init) ?? routedModelId
+        result += " • \(modelName)"
         return result
     }
     // MARK: - Initialization
@@ -362,6 +365,13 @@ class ChatViewModel: ObservableObject {
     
     func loadInitialData() {
         var loadedMessages = chatManager.getMessages(for: chatId)
+        
+        // Restore agent/template selection from conversation history
+        if let history = chatManager.getConversationHistory(for: chatId),
+           let templateIdStr = history.templateId,
+           let templateId = UUID(uuidString: templateIdStr) {
+            PromptTemplateManager.shared.selectedTemplateId = templateId
+        }
         
         // Mark tool result messages with "ToolResult" user so they are hidden in UI
         for i in 0..<loadedMessages.count {
@@ -1692,7 +1702,7 @@ class ChatViewModel: ObservableObject {
     /// Saves conversation history directly from UI messages
     /// This preserves all UI-specific data like pastedTexts without complex text parsing
     private func saveFromUIMessages() async {
-        var newConversationHistory = ConversationHistory(chatId: chatId, modelId: routedModelId, messages: [])
+        var newConversationHistory = ConversationHistory(chatId: chatId, modelId: routedModelId, messages: [], templateId: PromptTemplateManager.shared.selectedTemplateId?.uuidString)
         logger.debug("[SaveHistory] Saving \(messages.count) messages directly from UI state.")
         
         // Convert MessageData directly to Message for storage

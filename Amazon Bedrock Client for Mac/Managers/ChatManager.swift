@@ -67,13 +67,15 @@ struct ConversationHistory: Codable {
     var messages: [Message]
     var lastUpdated: Date
     var systemPrompt: String?
+    var templateId: String?  // UUID string of the selected system prompt / agent
     
-    init(chatId: String, modelId: String, messages: [Message] = [], systemPrompt: String? = nil) {
+    init(chatId: String, modelId: String, messages: [Message] = [], systemPrompt: String? = nil, templateId: String? = nil) {
         self.chatId = chatId
         self.modelId = modelId
         self.messages = messages
         self.lastUpdated = Date()
         self.systemPrompt = systemPrompt
+        self.templateId = templateId
     }
     
     // Improved implementation of addMessage
