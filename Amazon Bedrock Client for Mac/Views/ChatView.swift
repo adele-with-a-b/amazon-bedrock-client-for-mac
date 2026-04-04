@@ -86,7 +86,6 @@ struct ChatView: View {
         .onAppear {
             // Restore existing messages from disk or other storage
             viewModel.loadInitialData()
-            messagesLoaded = true
             
             // Set up usage handler for toast notifications
             viewModel.usageHandler = { usage in
@@ -197,17 +196,11 @@ struct ChatView: View {
     
     // MARK: - Message Scroll View
     
-    @State private var messagesLoaded = false
-    @State private var scrollReady = false
-    
     private var messageScrollView: some View {
         GeometryReader { outerGeo in
             ScrollViewReader { proxy in
                 ZStack {
-                    if messagesLoaded {
-                        scrollableMessageList(outerGeo: outerGeo, proxy: proxy)
-                            .opacity(scrollReady ? 1 : 0)
-                    }
+                    scrollableMessageList(outerGeo: outerGeo, proxy: proxy)
                     enhancedScrollToBottomButton(outerGeo: outerGeo, proxy: proxy)
                 }
                 .onPreferenceChange(BottomAnchorPreferenceKey.self) { bottomY in
@@ -219,15 +212,6 @@ struct ChatView: View {
                 .onChange(of: currentMatchIndex) { _, idx in
                     jumpToMatchIndex(idx, proxy: proxy)
                 }
-                .onChange(of: messagesLoaded) { _, loaded in
-                    if loaded {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            proxy.scrollTo("Bottom", anchor: .bottom)
-                            isAtBottom = true
-                            scrollReady = true
-                        }
-                    }
-                }
             }
         }
     }
@@ -236,52 +220,54 @@ struct ChatView: View {
         outerGeo: GeometryProxy,
         proxy: ScrollViewProxy
     ) -> some View {
-        let messageList = VStack(spacing: 2) {
-            ForEach(Array(viewModel.messages.enumerated()), id: \.offset) { idx, message in
-                MessageView(
-                    message: message, 
-                    searchResult: getSearchResultForMessage(idx),
-                    adjustedFontSize: CGFloat(adjustedFontSize)
-                )
+        ScrollView {
+            LazyVStack(spacing: 2) {
+                ForEach(Array(viewModel.messages.enumerated()), id: \.offset) { idx, message in
+                    MessageView(
+                        message: message,
+                        searchResult: getSearchResultForMessage(idx),
+                        adjustedFontSize: CGFloat(adjustedFontSize)
+                    )
                     .id(idx)
                     .frame(maxWidth: .infinity)
-            }
-            
-            // Processing indicator
-            if viewModel.isMessageBarDisabled {
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .scaleEffect(0.6)
-                        .frame(width: 14, height: 14)
-                    Text("Processing…")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
                 }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
-                .transition(.opacity)
-            }
-            
-            Color.clear
-                .frame(height: 1)
-                .id("Bottom")
-                .anchorPreference(key: BottomAnchorPreferenceKey.self, value: .bottom) { anchor in
-                    outerGeo[anchor].y
+                
+                // Processing indicator
+                if viewModel.isMessageBarDisabled {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .scaleEffect(0.6)
+                            .frame(width: 14, height: 14)
+                        Text("Processing…")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .transition(.opacity)
                 }
+                
+                Color.clear
+                    .frame(height: 1)
+                    .id("Bottom")
+                    .anchorPreference(key: BottomAnchorPreferenceKey.self, value: .bottom) { anchor in
+                        outerGeo[anchor].y
+                    }
+            }
+            .padding()
         }
-        .padding()
-        
-        return ScrollView {
-            messageList
-        }
-        .defaultScrollAnchor(.bottom)
+        .id(viewModel.chatId) // Force fresh ScrollView per conversation
         .modifier(ScrollEdgeEffectModifier())
-        .onChange(of: viewModel.messages) { _, _ in
-            if isAtBottom && searchQuery.isEmpty {
-                Task {
-                    try? await Task.sleep(nanoseconds: 50_000_000)
-                    proxy.scrollTo("Bottom", anchor: .bottom)
-                }
+        .onAppear {
+            DispatchQueue.main.async {
+                proxy.scrollTo("Bottom", anchor: .bottom)
+                isAtBottom = true
+            }
+        }
+        .onChange(of: viewModel.messages.count) { _, _ in
+            guard isAtBottom else { return }
+            withAnimation(.easeOut(duration: 0.2)) {
+                proxy.scrollTo("Bottom", anchor: .bottom)
             }
         }
     }
