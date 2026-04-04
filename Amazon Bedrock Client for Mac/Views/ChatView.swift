@@ -207,7 +207,11 @@ struct ChatView: View {
                     enhancedScrollToBottomButton(outerGeo: outerGeo, proxy: proxy)
                 }
                 .onPreferenceChange(BottomAnchorPreferenceKey.self) { bottomY in
+                    let old = isAtBottom
                     handleBottomAnchorChange(bottomY, containerHeight: outerGeo.size.height)
+                    if old != isAtBottom {
+                        debugLog("prefChange: isAtBottom \(old)->\(isAtBottom) bottomY=\(Int(bottomY)) containerH=\(Int(outerGeo.size.height))")
+                    }
                 }
                 .onChange(of: searchResult) { _, newResult in
                     jumpToFirstMatch(newResult, proxy: proxy)
@@ -224,7 +228,7 @@ struct ChatView: View {
         proxy: ScrollViewProxy
     ) -> some View {
         ScrollView {
-            LazyVStack(spacing: 2) {
+            VStack(spacing: 2) {
                 ForEach(Array(viewModel.messages.enumerated()), id: \.offset) { idx, message in
                     MessageView(
                         message: message,
@@ -261,15 +265,26 @@ struct ChatView: View {
         }
         .modifier(ScrollEdgeEffectModifier())
         .onAppear {
-            // Wait for layout, scroll, then reveal
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 proxy.scrollTo("Bottom", anchor: .bottom)
                 isAtBottom = true
                 scrollReady = true
+                self.debugLog("300ms: scrolled + revealed")
+            }
+            // Log if anything scrolls us away after
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.debugLog("500ms: isAtBottom=\(isAtBottom)")
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                self.debugLog("1000ms: isAtBottom=\(isAtBottom)")
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                self.debugLog("2000ms: isAtBottom=\(isAtBottom)")
             }
         }
-        .onChange(of: viewModel.messages.count) { _, _ in
-            guard isAtBottom else { return }
+        .onChange(of: viewModel.messages.count) { old, new in
+            // Skip the initial load (handled by onAppear)
+            guard scrollReady, isAtBottom else { return }
             withAnimation(.easeOut(duration: 0.2)) {
                 proxy.scrollTo("Bottom", anchor: .bottom)
             }
@@ -493,6 +508,19 @@ struct ChatView: View {
         searchResult = SearchResult(matches: [], totalMatches: 0, searchTime: 0)
         currentMatchIndex = 0
         searchDebounceTimer?.invalidate()
+    }
+    
+    private func debugLog(_ msg: String) {
+        let ts = ISO8601DateFormatter().string(from: Date())
+        let line = "[\(ts)] \(msg)\n"
+        let path = "/tmp/bedrock_scroll.log"
+        if let fh = FileHandle(forWritingAtPath: path) {
+            fh.seekToEndOfFile()
+            fh.write(line.data(using: .utf8)!)
+            fh.closeFile()
+        } else {
+            FileManager.default.createFile(atPath: path, contents: line.data(using: .utf8))
+        }
     }
     
     private func getSearchResultForMessage(_ messageIndex: Int) -> SearchMatch? {
