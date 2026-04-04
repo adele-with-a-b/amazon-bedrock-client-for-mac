@@ -277,16 +277,10 @@ struct ChatView: View {
             }
         }
         .onChange(of: viewModel.chatId) { _, _ in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                proxy.scrollTo("Bottom", anchor: .bottom)
-                isAtBottom = true
-            }
+            scrollToBottomRepeatedly(proxy: proxy)
         }
         .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                proxy.scrollTo("Bottom", anchor: .bottom)
-                isAtBottom = true
-            }
+            scrollToBottomRepeatedly(proxy: proxy)
         }
     }
     
@@ -516,6 +510,18 @@ struct ChatView: View {
     private func handleBottomAnchorChange(_ bottomY: CGFloat, containerHeight: CGFloat) {
         let threshold: CGFloat = 50
         isAtBottom = (bottomY <= containerHeight + threshold)
+    }
+    
+    /// Scroll to bottom repeatedly to handle lazy layout of long conversations
+    private func scrollToBottomRepeatedly(proxy: ScrollViewProxy) {
+        for delay in [0.1, 0.3, 0.6, 1.0, 1.5] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                proxy.scrollTo("Bottom", anchor: .bottom)
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+            isAtBottom = true
+        }
     }
     
     private func jumpToFirstMatch(_ result: SearchResult, proxy: ScrollViewProxy) {
