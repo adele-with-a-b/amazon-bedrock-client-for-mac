@@ -641,30 +641,7 @@ struct MessageView: View {
             
             // Tool use information display - show what's actually being executed
             if let toolUse = message.toolUse {
-                HStack(alignment: .top, spacing: 6) {
-                    Image(systemName: "terminal")
-                        .font(.system(size: fontSize + adjustedFontSize - 4))
-                        .foregroundColor(colorScheme == .dark ? Color.green.opacity(0.7) : Color.green.opacity(0.8))
-                    Text(toolUseSummary(toolUse))
-                        .font(.system(size: fontSize + adjustedFontSize - 2, design: .monospaced))
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
-                }
-                .padding(.vertical, 5)
-                .padding(.horizontal, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(colorScheme == .dark ?
-                              Color.green.opacity(0.05) :
-                              Color.green.opacity(0.03))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(colorScheme == .dark ?
-                                Color.green.opacity(0.15) :
-                                Color.green.opacity(0.1), lineWidth: 0.5)
-                )
-                .padding(.vertical, 2)
+                toolChipView(toolUse)
             }
         }
         .sheet(isPresented: $viewModel.isShowingImageModal) {
@@ -679,8 +656,31 @@ struct MessageView: View {
         }
     }
     
+    @ViewBuilder
+    private func toolChipView(_ toolUse: ToolInfo) -> some View {
+        let summary = toolUseSummary(toolUse)
+        let bgColor = colorScheme == .dark ? Color.green.opacity(0.05) : Color.green.opacity(0.03)
+        let borderColor = colorScheme == .dark ? Color.green.opacity(0.15) : Color.green.opacity(0.1)
+        let iconColor = colorScheme == .dark ? Color.green.opacity(0.7) : Color.green.opacity(0.8)
+        
+        HStack(alignment: .top, spacing: 6) {
+            Image(systemName: "terminal")
+                .font(.system(size: fontSize + adjustedFontSize - 4))
+                .foregroundColor(iconColor)
+            Text(summary)
+                .font(.system(size: fontSize + adjustedFontSize - 2, design: .monospaced))
+                .foregroundColor(.secondary)
+                .lineLimit(2)
+        }
+        .padding(.vertical, 5)
+        .padding(.horizontal, 10)
+        .background(RoundedRectangle(cornerRadius: 6).fill(bgColor))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(borderColor, lineWidth: 0.5))
+        .padding(.vertical, 2)
+    }
+    
     /// Extract a human-readable summary from tool input
-    private func toolUseSummary(_ toolUse: ToolUseInfo) -> String {
+    private func toolUseSummary(_ toolUse: ToolInfo) -> String {
         // Try to extract the most meaningful field from the input
         if case .object(let obj) = toolUse.input {
             // Shell commands: show the command
