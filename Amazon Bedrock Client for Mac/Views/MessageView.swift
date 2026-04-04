@@ -663,7 +663,6 @@ struct MessageView: View {
                 )
                 .padding(.vertical, 2)
             }
-            }
         }
         .sheet(isPresented: $viewModel.isShowingImageModal) {
             if let data = viewModel.selectedImageData,
