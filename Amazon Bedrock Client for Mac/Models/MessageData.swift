@@ -166,6 +166,7 @@ struct MessageData: Identifiable, Equatable, Codable {
     var pastedTexts: [PastedTextInfo]?  // Pasted text attachments (sent as text block, not document)
     var toolUse: ToolInfo?  // Information about tool usage in this message
     var toolResult: String?  // Result from tool execution
+    var usageInfo: String?  // Token usage info for display
     var videoUrl: URL?  // Local URL for generated video playback
     var videoS3Uri: String?  // S3 URI for video (for reference)
     

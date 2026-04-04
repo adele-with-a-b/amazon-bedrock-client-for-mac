@@ -557,6 +557,21 @@ struct MessageView: View {
             VStack(alignment: .leading, spacing: 4) {
                 // Message content with images and markdown
                 assistantMessageContent
+                
+                // Tiny timestamp and usage
+                HStack(spacing: 6) {
+                    Text(format(date: message.sentTime))
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary.opacity(0.5))
+                    if let usage = message.usageInfo, !usage.isEmpty {
+                        Text("·")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary.opacity(0.3))
+                        Text(usage)
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary.opacity(0.4))
+                    }
+                }
             }
             .padding(14)
             .background(
@@ -817,6 +832,14 @@ struct MessageView: View {
                 // Only create text if non-empty
                 if !message.text.isEmpty {
                     textContent
+                }
+                
+                // Tiny timestamp
+                HStack {
+                    Spacer()
+                    Text(format(date: message.sentTime))
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary.opacity(0.5))
                 }
             }
             .padding(14)

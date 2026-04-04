@@ -887,6 +887,14 @@ class ChatViewModel: ObservableObject {
         // Check if we've reached maximum turns
         if turnCount >= maxTurns {
             logger.info("Maximum number of tool use turns (\(maxTurns)) reached")
+            let limitMsg = MessageData(
+                id: UUID().uuidString,
+                text: "⚠️ Reached the tool use limit (\(maxTurns) turns). You can continue the conversation or increase the limit in Settings.",
+                user: chatModel.name,
+                isError: false,
+                sentTime: Date()
+            )
+            addMessage(limitMsg)
             return
         }
         
@@ -923,11 +931,14 @@ class ChatViewModel: ObservableObject {
             inferenceConfig: nil,
             toolConfig: toolConfig,
             usageHandler: { @Sendable [weak self] usage in
-                // Format usage information for toast display
                 Task { @MainActor [weak self] in
                     guard let self = self else { return }
                     let formattedUsage = self.formatUsageString(usage)
                     self.usageHandler?(formattedUsage)
+                    // Store usage on the current message
+                    if let index = self.messages.lastIndex(where: { $0.user != "User" && $0.user != "ToolResult" }) {
+                        self.messages[index].usageInfo = formattedUsage
+                    }
                 }
             }
         ) {

@@ -37,7 +37,7 @@ class SettingManager: ObservableObject {
         return appSupport.appendingPathComponent("Amazon Bedrock").path
     }()
     @AppStorage("defaultModelId") var defaultModelId: String = ""
-    @AppStorage("maxToolUseTurns") var maxToolUseTurns: Int = 10
+    @AppStorage("maxToolUseTurns") var maxToolUseTurns: Int = 25
     
     // Quick Access Hotkey Settings
     @AppStorage("enableQuickAccess") var enableQuickAccess: Bool = true
