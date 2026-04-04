@@ -683,6 +683,23 @@ struct AdvancedOptionsMenu: View {
                         }
                     }
                 }
+                
+                if !templateManager.agents.isEmpty {
+                    Divider()
+                    Text("Agents").font(.caption).foregroundColor(.secondary)
+                    ForEach(templateManager.agents) { agent in
+                        Button {
+                            templateManager.selectTemplate(agent)
+                        } label: {
+                            HStack {
+                                Text(agent.name)
+                                if templateManager.selectedTemplateId == agent.id {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                }
             }
             
             // MCP tools section - only show if model supports streaming tool use

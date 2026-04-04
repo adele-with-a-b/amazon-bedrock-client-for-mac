@@ -16,13 +16,25 @@ struct SystemPromptTemplate: Identifiable, Codable, Hashable {
     var content: String
     var createdAt: Date
     var updatedAt: Date
+    var isAgent: Bool
+    var promptFile: String?  // file path for agent prompts
     
-    init(id: UUID = UUID(), name: String, content: String) {
+    init(id: UUID = UUID(), name: String, content: String, isAgent: Bool = false, promptFile: String? = nil) {
         self.id = id
         self.name = name
         self.content = content
+        self.isAgent = isAgent
+        self.promptFile = promptFile
         self.createdAt = Date()
         self.updatedAt = Date()
+    }
+    
+    /// Resolves content — loads from file for agents, returns inline content otherwise
+    var resolvedContent: String {
+        if let path = promptFile {
+            return (try? String(contentsOfFile: path, encoding: .utf8)) ?? content
+        }
+        return content
     }
     
     // Default template (empty system prompt)
@@ -60,12 +72,13 @@ class PromptTemplateManager: ObservableObject {
         }
     }
     
+    @Published var agents: [SystemPromptTemplate] = []
+    
     @Published var selectedTemplateId: UUID? {
         didSet {
             if let id = selectedTemplateId,
-               let template = templates.first(where: { $0.id == id }) {
-                // Update the system prompt in SettingManager
-                SettingManager.shared.systemPrompt = template.content
+               let template = allTemplates.first(where: { $0.id == id }) {
+                SettingManager.shared.systemPrompt = template.resolvedContent
             }
             saveSelectedTemplate()
         }
@@ -74,16 +87,22 @@ class PromptTemplateManager: ObservableObject {
     private let storageKey = "systemPromptTemplates"
     private let selectedTemplateKey = "selectedSystemPromptTemplateId"
     
+    private let agentsDir: URL = {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        return appSupport.appendingPathComponent("Amazon Bedrock/agents")
+    }()
+    
     private init() {
         loadTemplates()
         loadSelectedTemplate()
+        loadAgents()
     }
     
     // MARK: - Selected Template
     
     var selectedTemplate: SystemPromptTemplate? {
         guard let id = selectedTemplateId else { return nil }
-        return templates.first { $0.id == id }
+        return allTemplates.first { $0.id == id }
     }
     
     func selectTemplate(_ template: SystemPromptTemplate) {
@@ -179,7 +198,7 @@ class PromptTemplateManager: ObservableObject {
     private func loadSelectedTemplate() {
         if let idString = UserDefaults.standard.string(forKey: selectedTemplateKey),
            let id = UUID(uuidString: idString),
-           templates.contains(where: { $0.id == id }) {
+           allTemplates.contains(where: { $0.id == id }) {
             self.selectedTemplateId = id
         } else {
             // Select first template by default
@@ -192,6 +211,51 @@ class PromptTemplateManager: ObservableObject {
             UserDefaults.standard.set(id.uuidString, forKey: selectedTemplateKey)
         }
     }
+    
+    // MARK: - Agent Loading
+    
+    private struct AgentConfigFile: Codable {
+        let name: String
+        let description: String
+        let prompt: String  // file:// URI or inline
+    }
+    
+    func loadAgents() {
+        try? FileManager.default.createDirectory(at: agentsDir, withIntermediateDirectories: true)
+        
+        guard let files = try? FileManager.default.contentsOfDirectory(at: agentsDir, includingPropertiesForKeys: nil) else { return }
+        
+        agents = files
+            .filter { $0.pathExtension == "json" }
+            .compactMap { url -> SystemPromptTemplate? in
+                guard let data = try? Data(contentsOf: url),
+                      let config = try? JSONDecoder().decode(AgentConfigFile.self, from: data) else { return nil }
+                
+                let promptFile: String?
+                if config.prompt.hasPrefix("file://") {
+                    promptFile = String(config.prompt.dropFirst(7))
+                } else {
+                    promptFile = nil
+                }
+                
+                return SystemPromptTemplate(
+                    name: config.name,
+                    content: config.description,
+                    isAgent: true,
+                    promptFile: promptFile
+                )
+            }
+            .sorted { $0.name < $1.name }
+        
+        logger.info("Loaded \(agents.count) agents from \(agentsDir.path)")
+    }
+    
+    /// All available options: user templates + agents
+    var allTemplates: [SystemPromptTemplate] {
+        templates + agents
+    }
+    
+    var agentsDirectory: URL { agentsDir }
     
     // MARK: - Import Examples
     

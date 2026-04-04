@@ -1447,6 +1447,23 @@ struct SystemPromptSection: View {
                         }
                     }
                     
+                    if !templateManager.agents.isEmpty {
+                        Divider()
+                        Text("Agents")
+                        ForEach(templateManager.agents) { agent in
+                            Button {
+                                templateManager.selectTemplate(agent)
+                            } label: {
+                                HStack {
+                                    Text(agent.name)
+                                    if templateManager.selectedTemplateId == agent.id {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
                     Divider()
                     
                     // Management options
