@@ -219,12 +219,13 @@ struct ChatView: View {
                 }
                 .onChange(of: messagesLoaded) { _, loaded in
                     if loaded {
-                        debugLog("messagesLoaded=true, msgs=\(viewModel.messages.count), scheduling 5s scroll")
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-                            debugLog("5s timer fired. isAtBottom=\(isAtBottom), msgs=\(viewModel.messages.count)")
-                            debugLog("About to scrollTo Bottom")
-                            proxy.scrollTo("Bottom", anchor: .bottom)
-                            debugLog("scrollTo Bottom done")
+                        debugLog("messagesLoaded=true, msgs=\(viewModel.messages.count)")
+                        // Try multiple delays to find the sweet spot
+                        for ms in [100, 300, 500, 1000, 2000] {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + Double(ms)/1000.0) {
+                                debugLog("\(ms)ms: isAtBottom=\(self.isAtBottom)")
+                                proxy.scrollTo("Bottom", anchor: .bottom)
+                            }
                         }
                     }
                 }
