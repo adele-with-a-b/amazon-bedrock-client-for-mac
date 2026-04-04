@@ -881,7 +881,7 @@ class ChatManager: ObservableObject {
                     )
                     uniqueChats[chatModel.chatId] = chatModel
                 }
-                self.chats = Array(uniqueChats.values)
+                self.chats = Array(uniqueChats.values).sorted { $0.lastMessageDate > $1.lastMessageDate }
             }
         } catch {
             logger.info("Failed to fetch chats: \(error)")
