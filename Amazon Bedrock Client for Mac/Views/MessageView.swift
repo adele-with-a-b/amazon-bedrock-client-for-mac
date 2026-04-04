@@ -632,15 +632,23 @@ struct MessageView: View {
         }
         
         VStack(spacing: 8) {
-            // Expandable "thinking" section
+            // Thinking shown inline (not collapsed)
             if let thinking = message.thinking, !thinking.isEmpty {
-                ExpandableMarkdownItem(
-                    header: "Thinking",
-                    text: thinking,
-                    fontSize: fontSize + adjustedFontSize - 2,
-                    searchRanges: searchResult?.ranges ?? [],
-                    summary: message.thinkingSummary,
-                    isStreaming: message.text.isEmpty  // Still streaming if no text yet
+                VStack(alignment: .leading, spacing: 4) {
+                    LazyMarkdownView(
+                        text: thinking,
+                        fontSize: fontSize + adjustedFontSize - 2,
+                        searchRanges: searchResult?.ranges ?? []
+                    )
+                    .foregroundColor(.secondary)
+                    .opacity(0.8)
+                }
+                .padding(10)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(colorScheme == .dark ?
+                              Color.white.opacity(0.03) :
+                              Color(nsColor: NSColor.quaternarySystemFill).opacity(0.5))
                 )
                 .padding(.vertical, 2)
             }

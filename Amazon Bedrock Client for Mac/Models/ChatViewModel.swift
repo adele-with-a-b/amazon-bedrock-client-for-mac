@@ -212,19 +212,22 @@ class ChatViewModel: ObservableObject {
     // Track response timing
     var responseStartTime: Date?
     
-    // Format usage as credits + time like "Credits: 1.15 • Time: 15s"
-    private func formatUsageString(_ usage: UsageInfo) -> String {
+    // Cumulative credits for the current turn
+    private var cumulativeCredits: Double = 0.0
+    
+    // Calculate credits from usage (does NOT format, just returns dollar amount)
+    private func creditsFromUsage(_ usage: UsageInfo) -> Double {
         let inputTokens = Double(usage.inputTokens ?? 0)
         let outputTokens = Double(usage.outputTokens ?? 0)
         let cacheRead = Double(usage.cacheReadInputTokens ?? 0)
-        
-        // Credits: input $3/MTok, cache read $0.30/MTok, output $15/MTok (Claude Sonnet-class pricing)
-        let credits = (inputTokens - cacheRead) * 3.0 / 1_000_000
+        return (inputTokens - cacheRead) * 3.0 / 1_000_000
             + cacheRead * 0.30 / 1_000_000
             + outputTokens * 15.0 / 1_000_000
-        
-        let creditsStr = String(format: "%.2f", credits)
-        
+    }
+    
+    // Format cumulative usage for display
+    private func formatCumulativeUsage() -> String {
+        let creditsStr = String(format: "%.2f", cumulativeCredits)
         var result = "Credits: $\(creditsStr)"
         if let start = responseStartTime {
             let elapsed = Int(Date().timeIntervalSince(start))
@@ -232,7 +235,6 @@ class ChatViewModel: ObservableObject {
         }
         return result
     }
-    
     // MARK: - Initialization
     
     init(chatId: String, backendModel: BackendModel, chatManager: ChatManager = .shared, sharedMediaDataSource: SharedMediaDataSource) {
@@ -431,6 +433,7 @@ class ChatViewModel: ObservableObject {
         chatManager.setIsLoading(true, for: chatId)
         isMessageBarDisabled = true
         responseStartTime = Date()
+        cumulativeCredits = 0.0
         
         let tempInput = userInput
         Task {
@@ -508,6 +511,16 @@ class ChatViewModel: ObservableObject {
         }
         
         isMessageBarDisabled = false
+        
+        // Write cumulative credits to the last assistant message
+        if cumulativeCredits > 0 {
+            let usage = formatCumulativeUsage()
+            if let index = messages.lastIndex(where: { $0.user != "User" && $0.user != "ToolResult" }) {
+                messages[index].usageInfo = usage
+            }
+            usageHandler?(usage)
+        }
+        
         chatManager.setIsLoading(false, for: chatId)
     }
     
@@ -958,12 +971,7 @@ class ChatViewModel: ObservableObject {
             usageHandler: { @Sendable [weak self] usage in
                 Task { @MainActor [weak self] in
                     guard let self = self else { return }
-                    let formattedUsage = self.formatUsageString(usage)
-                    self.usageHandler?(formattedUsage)
-                    // Store usage on the current message
-                    if let index = self.messages.lastIndex(where: { $0.user != "User" && $0.user != "ToolResult" }) {
-                        self.messages[index].usageInfo = formattedUsage
-                    }
+                    self.cumulativeCredits += self.creditsFromUsage(usage)
                 }
             }
         ) {

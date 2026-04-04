@@ -230,6 +230,22 @@ struct ChatView: View {
                     .id(idx)
                     .frame(maxWidth: .infinity)
             }
+            
+            // Processing indicator
+            if viewModel.isMessageBarDisabled {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                        .frame(width: 14, height: 14)
+                    Text("Processing…")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .transition(.opacity)
+            }
+            
             Color.clear
                 .frame(height: 1)
                 .id("Bottom")
