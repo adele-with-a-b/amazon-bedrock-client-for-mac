@@ -169,7 +169,12 @@ final class MyTextView: NSTextView {
                 }
                 // Handle document files
                 else if supportedDocExtensions.contains(ext) {
-                    pastedDocuments.append(url)  // Store document URL
+                    pastedDocuments.append(url)
+                    fileProcessed = true
+                }
+                // Any other file type from Finder: paste as path
+                else {
+                    pastedText += (pastedText.isEmpty ? "" : "\n") + url.path
                     fileProcessed = true
                 }
             }
