@@ -964,21 +964,44 @@ struct MessageView: View {
     
     /// Strip repetitive "The user is asking/wants/says..." preamble from thinking text
     private static func trimThinkingPreamble(_ text: String) -> String {
-        let patterns = [
-            #"^(?:(?:The|OK,?\s*(?:so\s*)?the)\s+user\s+(?:is\s+)?(?:asking|saying|wanting|requesting|looking|trying|wondering|inquiring|mentioning|describing|explaining|talking|referring|pointing)[\s\S]*?(?:\.\s*|\n\n))"#,
-            #"^(?:Let me (?:think|consider|analyze|understand|process|look|figure|work|break)[\s\S]*?(?:\.\s*|\n\n))"#,
-            #"^(?:(?:So|OK|Okay|Alright|Hmm),?\s+(?:the user|they|this)[\s\S]*?(?:\.\s*|\n\n))"#,
+        // Split into sentences, drop leading ones that restate the user's question
+        let preamblePatterns = [
+            #"(?i)the user (?:is |has |was |wants? |would |doesn't |does |didn't |said |asks? |asked |seems? |need)"#,
+            #"(?i)^(?:so|ok|okay|alright|hmm|let me),?\s"#,
+            #"(?i)^(?:they|this) (?:is |are |want|need|ask|seem)"#,
         ]
-        var result = text
-        for pattern in patterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
-               let match = regex.firstMatch(in: result, range: NSRange(result.startIndex..., in: result)) {
-                let end = result.index(result.startIndex, offsetBy: match.range.upperBound)
-                result = String(result[end...]).trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+        
+        // Find sentences by splitting on ". " or ".\n"
+        var remaining = text
+        var stripped = false
+        
+        // Try to strip up to 3 leading preamble sentences
+        for _ in 0..<3 {
+            let trimmed = remaining.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            if trimmed.isEmpty { break }
+            
+            let matchesPreamble = preamblePatterns.contains { pattern in
+                (try? NSRegularExpression(pattern: pattern))?.firstMatch(
+                    in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)
+                ) != nil
+            }
+            
+            guard matchesPreamble else { break }
+            
+            // Find end of this sentence
+            if let dotRange = trimmed.range(of: #"\.\s"#, options: .regularExpression) {
+                remaining = String(trimmed[dotRange.upperBound...])
+                stripped = true
+            } else if trimmed.hasSuffix(".") {
+                remaining = ""
+                stripped = true
                 break
+            } else {
+                break // Incomplete sentence, stop
             }
         }
-        return result
+        
+        return stripped ? remaining.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) : text
     }
     
     // MARK: - Search Match Scrolling

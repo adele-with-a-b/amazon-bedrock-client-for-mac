@@ -275,13 +275,18 @@ struct ChatView: View {
             }
         }
         .task {
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            proxy.scrollTo("Bottom", anchor: .bottom)
-            isAtBottom = true
+            // Wait for messages to load, then scroll
+            for _ in 0..<10 {
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                if !viewModel.messages.isEmpty {
+                    proxy.scrollTo("Bottom", anchor: .bottom)
+                    isAtBottom = true
+                    break
+                }
+            }
         }
         .onAppear {
-            // Scroll to bottom once messages are loaded from disk
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 proxy.scrollTo("Bottom", anchor: .bottom)
                 isAtBottom = true
             }

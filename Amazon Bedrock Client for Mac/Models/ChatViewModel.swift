@@ -201,6 +201,10 @@ class ChatViewModel: ObservableObject {
     // Track current message ID being streamed to fix duplicate issue
     private var currentStreamingMessageId: UUID?
     
+    // Buffer thinking text to strip preamble before displaying
+    private var thinkingBuffer: String = ""
+    private var thinkingPreambleStripped: Bool = false
+    
     // Thinking summary generation state
     private var lastThinkingSummaryLength: Int = 0
     private let thinkingSummaryThreshold: Int = 200  // Generate summary every 200 chars
@@ -947,6 +951,8 @@ class ChatViewModel: ObservableObject {
         var thinkingSignature: String? = nil
         var isFirstChunk = true
         var toolWasUsed = false
+        thinkingBuffer = ""
+        thinkingPreambleStripped = false
         
         // Use bedrockMessages directly instead of re-fetching conversation history
         // This ensures tool_use/tool_result pairs are properly maintained
@@ -1354,35 +1360,83 @@ class ChatViewModel: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
-            var currentThinking: String = ""
-            
-            if shouldCreateNewMessage {
-                let newMessage = MessageData(
-                    id: messageId,
-                    text: "",
-                    thinking: thinking,
-                    user: self.chatModel.name,
-                    isError: false,
-                    sentTime: Date()
-                )
-                self.messages.append(newMessage)
-                currentThinking = thinking
-            } else {
-                if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
-                    self.messages[index].thinking = (self.messages[index].thinking ?? "") + thinking
-                    currentThinking = self.messages[index].thinking ?? ""
+            // Buffer thinking to strip preamble before displaying
+            if !self.thinkingPreambleStripped {
+                self.thinkingBuffer += thinking
+                
+                // Wait until we have a complete sentence to decide
+                let hasSentenceEnd = self.thinkingBuffer.contains(". ") || self.thinkingBuffer.contains(".\n")
+                let longEnough = self.thinkingBuffer.count > 300
+                guard hasSentenceEnd || longEnough else {
+                    // Still buffering — create message placeholder if needed
+                    if shouldCreateNewMessage {
+                        let newMessage = MessageData(id: messageId, text: "", thinking: "", user: self.chatModel.name, isError: false, sentTime: Date())
+                        self.messages.append(newMessage)
+                    }
+                    return
                 }
+                
+                // Strip preamble from buffer
+                self.thinkingPreambleStripped = true
+                let stripped = Self.trimThinkingPreamble(self.thinkingBuffer)
+                self.thinkingBuffer = ""
+                
+                // Write stripped text to message
+                if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
+                    self.messages[index].thinking = stripped
+                } else if shouldCreateNewMessage {
+                    let newMessage = MessageData(id: messageId, text: "", thinking: stripped, user: self.chatModel.name, isError: false, sentTime: Date())
+                    self.messages.append(newMessage)
+                }
+                self.objectWillChange.send()
+                return
+            }
+            
+            // After preamble is stripped, append directly
+            if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
+                self.messages[index].thinking = (self.messages[index].thinking ?? "") + thinking
             }
             
             self.objectWillChange.send()
             
             // Trigger real-time summary generation if enough new content
+            let currentThinking = self.messages.first(where: { $0.id == messageId })?.thinking ?? ""
             let thinkingLength = currentThinking.count
             if thinkingLength - self.lastThinkingSummaryLength >= self.thinkingSummaryThreshold {
                 self.lastThinkingSummaryLength = thinkingLength
                 self.triggerThinkingSummary(for: messageId, thinking: currentThinking)
             }
         }
+    }
+    
+    /// Strip preamble sentences that restate the user's question
+    private static func trimThinkingPreamble(_ text: String) -> String {
+        let preamblePatterns = [
+            #"(?i)the user (?:is |has |was |wants? |would |doesn't |does |didn't |said |asks? |asked |seems? |need)"#,
+            #"(?i)^(?:so|ok|okay|alright|hmm|let me),?\s"#,
+            #"(?i)^(?:they|this) (?:is |are |want|need|ask|seem)"#,
+        ]
+        var remaining = text
+        var stripped = false
+        for _ in 0..<3 {
+            let trimmed = remaining.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            if trimmed.isEmpty { break }
+            let matchesPreamble = preamblePatterns.contains { pattern in
+                (try? NSRegularExpression(pattern: pattern))?.firstMatch(
+                    in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)
+                ) != nil
+            }
+            guard matchesPreamble else { break }
+            if let dotRange = trimmed.range(of: #"\.\s"#, options: .regularExpression) {
+                remaining = String(trimmed[dotRange.upperBound...])
+                stripped = true
+            } else if trimmed.hasSuffix(".") {
+                remaining = ""
+                stripped = true
+                break
+            } else { break }
+        }
+        return stripped ? remaining.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) : text
     }
     
     /// Trigger thinking summary generation immediately (runs in parallel)
