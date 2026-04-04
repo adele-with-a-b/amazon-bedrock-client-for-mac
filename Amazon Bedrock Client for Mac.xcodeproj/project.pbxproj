@@ -41,6 +41,7 @@
 		79B37BFB2DA06BB5006A7A62 /* DocumentPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79B37BFA2DA06BB1006A7A62 /* DocumentPreview.swift */; };
 		79BF645F2ACFF8FD00383300 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 79BF645E2ACFF8FD00383300 /* README.md */; };
 		79BFF5102AD342710057BF3A /* ChatManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79BFF50F2AD342710057BF3A /* ChatManager.swift */; };
+		B966EC8F52A23215B3677E33 /* MessageRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22CA3D4A8D04A8240E76DF13 /* MessageRouter.swift */; };
 		79C4F01E2C30362100C488C2 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79C4F01D2C30362100C488C2 /* AppDelegate.swift */; };
 		79C4F0202C3048A300C488C2 /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79C4F01F2C3048A300C488C2 /* AppCoordinator.swift */; };
 		79C7F5ED2AD282EE008FBB35 /* EnvironmentExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79C7F5EC2AD282EE008FBB35 /* EnvironmentExtensions.swift */; };
@@ -131,6 +132,7 @@
 		79B37BFA2DA06BB1006A7A62 /* DocumentPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentPreview.swift; sourceTree = "<group>"; };
 		79BF645E2ACFF8FD00383300 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		79BFF50F2AD342710057BF3A /* ChatManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatManager.swift; sourceTree = "<group>"; };
+		22CA3D4A8D04A8240E76DF13 /* MessageRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageRouter.swift; sourceTree = "<group>"; };
 		79C4F01D2C30362100C488C2 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		79C4F01F2C3048A300C488C2 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
 		79C7F5EC2AD282EE008FBB35 /* EnvironmentExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentExtensions.swift; sourceTree = "<group>"; };
@@ -261,6 +263,7 @@
 				79D3C7822D9C799000CB020F /* AppStateManager.swift */,
 				79610DC12AD22A2F00993D09 /* BedrockClient.swift */,
 				79BFF50F2AD342710057BF3A /* ChatManager.swift */,
+				22CA3D4A8D04A8240E76DF13 /* MessageRouter.swift */,
 				79F53C842E7B08AA00F129F4 /* HotkeyManager.swift */,
 				79FF2B322D925ED10075249D /* MCPManager.swift */,
 				79FF2B362D925F300075249D /* MCPOAuthManager.swift */,
@@ -546,6 +549,7 @@
 				79F53C8B2E7B0DBA00F129F4 /* HotkeyRecorderView.swift in Sources */,
 				79610DE52AD22A2F00993D09 /* MessageBarView.swift in Sources */,
 				79BFF5102AD342710057BF3A /* ChatManager.swift in Sources */,
+				B966EC8F52A23215B3677E33 /* MessageRouter.swift in Sources */,
 				79F53C852E7B08AF00F129F4 /* HotkeyManager.swift in Sources */,
 				797A12C12C2EB9E200494DD9 /* ChatViewModel.swift in Sources */,
 				797A12BF2C2EB53800494DD9 /* ChatModel.xcdatamodeld in Sources */,
