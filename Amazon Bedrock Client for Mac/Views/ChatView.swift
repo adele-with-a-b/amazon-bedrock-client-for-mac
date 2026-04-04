@@ -197,6 +197,7 @@ struct ChatView: View {
     // MARK: - Message Scroll View
     
     @State private var scrollReady = false
+    @State private var initialScrollTime: Date?
     
     private var messageScrollView: some View {
         GeometryReader { outerGeo in
@@ -207,10 +208,10 @@ struct ChatView: View {
                     enhancedScrollToBottomButton(outerGeo: outerGeo, proxy: proxy)
                 }
                 .onPreferenceChange(BottomAnchorPreferenceKey.self) { bottomY in
-                    let old = isAtBottom
                     handleBottomAnchorChange(bottomY, containerHeight: outerGeo.size.height)
-                    if old != isAtBottom {
-                        debugLog("prefChange: isAtBottom \(old)->\(isAtBottom) bottomY=\(Int(bottomY)) containerH=\(Int(outerGeo.size.height))")
+                    // Keep re-scrolling to bottom for 2s after initial scroll while content settles
+                    if let t = initialScrollTime, Date().timeIntervalSince(t) < 2.0 {
+                        proxy.scrollTo("Bottom", anchor: .bottom)
                     }
                 }
                 .onChange(of: searchResult) { _, newResult in
@@ -269,17 +270,7 @@ struct ChatView: View {
                 proxy.scrollTo("Bottom", anchor: .bottom)
                 isAtBottom = true
                 scrollReady = true
-                self.debugLog("300ms: scrolled + revealed")
-            }
-            // Log if anything scrolls us away after
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                self.debugLog("500ms: isAtBottom=\(isAtBottom)")
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                self.debugLog("1000ms: isAtBottom=\(isAtBottom)")
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                self.debugLog("2000ms: isAtBottom=\(isAtBottom)")
+                initialScrollTime = Date()
             }
         }
         .onChange(of: viewModel.messages.count) { old, new in
