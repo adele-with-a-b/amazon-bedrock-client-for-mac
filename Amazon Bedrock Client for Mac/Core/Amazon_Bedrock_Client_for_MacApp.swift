@@ -16,9 +16,10 @@ struct CustomLogHandler: LogHandler {
     
     /// Shared file handle for log output
     private static let logFileHandle: FileHandle? = {
-        let logPath = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Desktop/bedrock.log").path
-        // Truncate on launch
+        let logDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Amazon Bedrock Client")
+        try? FileManager.default.createDirectory(at: logDir, withIntermediateDirectories: true)
+        let logPath = logDir.appendingPathComponent("bedrock.log").path
         FileManager.default.createFile(atPath: logPath, contents: nil)
         return FileHandle(forWritingAtPath: logPath)
     }()
