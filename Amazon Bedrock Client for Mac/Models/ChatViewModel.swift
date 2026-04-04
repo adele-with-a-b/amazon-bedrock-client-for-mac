@@ -212,13 +212,8 @@ class ChatViewModel: ObservableObject {
     // Track response timing
     var responseStartTime: Date?
     
-    // Cumulative credits for the current turn (thread-safe)
-    private var _creditsLock = os_unfair_lock()
-    private var _creditsValue: Double = 0.0
-    private var cumulativeCredits: Double {
-        get { os_unfair_lock_lock(&_creditsLock); defer { os_unfair_lock_unlock(&_creditsLock) }; return _creditsValue }
-        set { os_unfair_lock_lock(&_creditsLock); _creditsValue = newValue; os_unfair_lock_unlock(&_creditsLock) }
-    }
+    // Cumulative credits for the current turn
+    private var cumulativeCredits: Double = 0.0
     
     // Calculate credits from usage (does NOT format, just returns dollar amount)
     private func creditsFromUsage(_ usage: UsageInfo) -> Double {
@@ -518,6 +513,8 @@ class ChatViewModel: ObservableObject {
         isMessageBarDisabled = false
         
         // Write cumulative credits to the last assistant message
+        // Small yield to let any pending usage callbacks land
+        try? await Task.sleep(nanoseconds: 100_000_000)
         if cumulativeCredits > 0 {
             let usage = formatCumulativeUsage()
             if let index = messages.lastIndex(where: { $0.user != "User" && $0.user != "ToolResult" }) {
@@ -974,9 +971,13 @@ class ChatViewModel: ObservableObject {
             inferenceConfig: nil,
             toolConfig: toolConfig,
             usageHandler: { @Sendable [weak self] usage in
-                guard let self = self else { return }
-                let credits = self.creditsFromUsage(usage)
-                self.cumulativeCredits += credits
+                let input = Double(usage.inputTokens ?? 0)
+                let output = Double(usage.outputTokens ?? 0)
+                let cacheRead = Double(usage.cacheReadInputTokens ?? 0)
+                let credits = (input - cacheRead) * 3.0 / 1_000_000
+                    + cacheRead * 0.30 / 1_000_000
+                    + output * 15.0 / 1_000_000
+                Task { @MainActor in self?.cumulativeCredits += credits }
             }
         ) {
             // Check for tool use in each chunk
