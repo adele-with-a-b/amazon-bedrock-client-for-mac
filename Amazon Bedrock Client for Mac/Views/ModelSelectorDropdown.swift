@@ -137,6 +137,20 @@ struct ModelSelectorPopoverContent: View {
             // Enhanced model list
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
+                    // Auto routing option
+                    EnhancedModelRowView(
+                        model: ChatModel.autoRouting,
+                        isSelected: {
+                            if case let .chat(m) = menuSelection { return m.isAutoRouting }
+                            return false
+                        }(),
+                        isFavorite: false,
+                        toggleFavorite: {},
+                        selectModel: { selectModel(ChatModel.autoRouting) }
+                    )
+                    
+                    Divider().padding(.vertical, 8)
+                    
                     // Favorites section
                     if !filteredFavorites.isEmpty {
                         SectionHeader(title: "Favorites")

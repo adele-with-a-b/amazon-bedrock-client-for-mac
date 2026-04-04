@@ -18,6 +18,18 @@ class ChatModel: ObservableObject, Identifiable, Equatable, Hashable, @unchecked
     @Published var lastMessageDate: Date
     var isManuallyRenamed: Bool = false // Track if user manually renamed this chat
     
+    static let autoRouting = ChatModel(
+        id: "auto",
+        chatId: "auto",
+        name: "Auto",
+        title: "Auto",
+        description: "Automatically routes to the best model based on message complexity",
+        provider: "Auto",
+        lastMessageDate: Date()
+    )
+    
+    var isAutoRouting: Bool { id == "auto" }
+    
     init(id: String, chatId: String, name: String, title: String, description: String, provider: String, lastMessageDate: Date, isManuallyRenamed: Bool = false) {
         self.id = id
         self.chatId = chatId

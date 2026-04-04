@@ -179,6 +179,10 @@ class ChatViewModel: ObservableObject {
     @Published var messages: [MessageData] = []
     @Published var userInput: String = ""
     @Published var isMessageBarDisabled: Bool = false
+    
+    /// The model ID to use for the current request (may differ from chatModel.id when auto-routing)
+    private var routedModelId: String { _routedModelId ?? chatModel.id }
+    private var _routedModelId: String?
     @Published var isSending: Bool = false
     @Published var isStreamingEnabled: Bool = false
     @Published var selectedPlaceholder: String
@@ -443,13 +447,32 @@ class ChatViewModel: ObservableObject {
         sharedMediaDataSource.clear()
         
         do {
-            if backendModel.backend.isImageGenerationModel(chatModel.id) {
+            // Auto-routing: resolve the best model for this message
+            if chatModel.isAutoRouting {
+                let router = MessageRouter.shared
+                let tier = router.resolveModelTier(from: settingManager.availableModels)
+                let hasAttachments = !(userMessage.imageBase64Strings?.isEmpty ?? true)
+                    || !(userMessage.documentBase64Strings?.isEmpty ?? true)
+                let result = await router.route(
+                    message: userMessage.text,
+                    conversationLength: messages.count,
+                    hasAttachments: hasAttachments,
+                    backend: backendModel.backend,
+                    tier: tier
+                )
+                _routedModelId = result.modelId
+                logger.info("Auto-routed to \(result.modelId) (\(result.complexity.rawValue))")
+            } else {
+                _routedModelId = nil
+            }
+            
+            if backendModel.backend.isImageGenerationModel(routedModelId) {
                 try await handleImageGenerationModel(userMessage, attachedImages: attachedImages)
-            } else if backendModel.backend.isEmbeddingModel(chatModel.id) {
+            } else if backendModel.backend.isEmbeddingModel(routedModelId) {
                 try await handleEmbeddingModel(userMessage)
             } else {
                 // Check if streaming is enabled for this model
-                let modelConfig = settingManager.getInferenceConfig(for: chatModel.id)
+                let modelConfig = settingManager.getInferenceConfig(for: routedModelId)
                 let shouldUseStreaming = modelConfig.overrideDefault ? modelConfig.enableStreaming : true
                 
                 if shouldUseStreaming {
@@ -847,16 +870,16 @@ class ChatViewModel: ObservableObject {
         if mcpManager.mcpEnabled &&
             !mcpManager.toolInfos.isEmpty &&
             hasConnectedServer &&
-            backendModel.backend.isStreamingToolUseSupported(chatModel.id) {
+            backendModel.backend.isStreamingToolUseSupported(routedModelId) {
             let toolCount = mcpManager.toolInfos.count
             let connectedCount = mcpManager.connectionStatus.values.filter { $0 == .connected }.count
-            logger.info("MCP enabled with \(toolCount) tools from \(connectedCount) connected server(s) for model \(chatModel.id).")
+            logger.info("MCP enabled with \(toolCount) tools from \(connectedCount) connected server(s) for model \(routedModelId).")
             toolConfig = convertMCPToolsToBedrockFormat(mcpManager.toolInfos)
             // MCP connection notification is sent from MCPManager when server connects
         } else if mcpManager.mcpEnabled && !mcpManager.toolInfos.isEmpty && !hasConnectedServer {
             logger.info("MCP enabled but no servers connected yet.")
-        } else if mcpManager.mcpEnabled && hasConnectedServer && !backendModel.backend.isStreamingToolUseSupported(chatModel.id) {
-            logger.info("MCP enabled, but model \(chatModel.id) does not support streaming tool use. Tools disabled.")
+        } else if mcpManager.mcpEnabled && hasConnectedServer && !backendModel.backend.isStreamingToolUseSupported(routedModelId) {
+            logger.info("MCP enabled, but model \(routedModelId) does not support streaming tool use. Tools disabled.")
         }
         
         // Reset tool tracker for new conversation
@@ -866,13 +889,13 @@ class ChatViewModel: ObservableObject {
         let turn_count = 0
         
         // Get Bedrock messages in AWS SDK format
-        let bedrockMessages = try conversationHistory.map { try convertToBedrockMessage($0, modelId: chatModel.id) }
+        let bedrockMessages = try conversationHistory.map { try convertToBedrockMessage($0, modelId: routedModelId) }
         
         // Convert to system prompt format used by AWS SDK
         let systemContentBlock: [AWSBedrockRuntime.BedrockRuntimeClientTypes.SystemContentBlock]? =
         systemPrompt.isEmpty ? nil : [.text(systemPrompt)]
         
-        logger.info("Starting converseStream request with model ID: \(chatModel.id)")
+        logger.info("Starting converseStream request with model ID: \(routedModelId)")
         
         // Start the tool cycling process
         try await processToolCycles(bedrockMessages: bedrockMessages, systemContentBlock: systemContentBlock, toolConfig: toolConfig, turnCount: turn_count, maxTurns: maxTurns)
@@ -927,7 +950,7 @@ class ChatViewModel: ObservableObject {
         
         // Stream chunks from the model
         for try await chunk in try await backend.converseStream(
-            withId: chatModel.id,
+            withId: routedModelId,
             messages: bedrockMessages,
             systemContent: systemContentBlock,
             inferenceConfig: nil,
@@ -1095,8 +1118,8 @@ class ChatViewModel: ObservableObject {
                 logger.debug("Added user message with tool_result ID: \(toolUseInfo.toolUseId)")
 
                 // Convert BedrockMessage to AWS SDK format and append to existing messages
-                let awsAssistantMessage = try convertToBedrockMessage(assistantMessage, modelId: chatModel.id)
-                let awsToolResultMessage = try convertToBedrockMessage(toolResultMessage, modelId: chatModel.id)
+                let awsAssistantMessage = try convertToBedrockMessage(assistantMessage, modelId: routedModelId)
+                let awsToolResultMessage = try convertToBedrockMessage(toolResultMessage, modelId: routedModelId)
                 
                 // Build updated messages array: existing + assistant with tool_use + user with tool_result
                 var updatedMessages = bedrockMessages
@@ -1548,7 +1571,7 @@ class ChatViewModel: ObservableObject {
     /// Saves conversation history directly from UI messages
     /// This preserves all UI-specific data like pastedTexts without complex text parsing
     private func saveFromUIMessages() async {
-        var newConversationHistory = ConversationHistory(chatId: chatId, modelId: chatModel.id, messages: [])
+        var newConversationHistory = ConversationHistory(chatId: chatId, modelId: routedModelId, messages: [])
         logger.debug("[SaveHistory] Saving \(messages.count) messages directly from UI state.")
         
         // Convert MessageData directly to Message for storage
