@@ -7,9 +7,6 @@
 
 import SwiftUI
 import Combine
-import os
-
-private let scrollLog = Logger(subsystem: "com.amazon.bedrock", category: "scroll")
 
 struct BottomAnchorPreferenceKey: PreferenceKey {
     typealias Value = CGFloat
@@ -89,6 +86,7 @@ struct ChatView: View {
         .onAppear {
             // Restore existing messages from disk or other storage
             viewModel.loadInitialData()
+            messagesLoaded = true
             
             // Set up usage handler for toast notifications
             viewModel.usageHandler = { usage in
@@ -199,19 +197,19 @@ struct ChatView: View {
     
     // MARK: - Message Scroll View
     
+    @State private var messagesLoaded = false
+    
     private var messageScrollView: some View {
         GeometryReader { outerGeo in
             ScrollViewReader { proxy in
                 ZStack {
-                    scrollableMessageList(outerGeo: outerGeo, proxy: proxy)
+                    if messagesLoaded {
+                        scrollableMessageList(outerGeo: outerGeo, proxy: proxy)
+                    }
                     enhancedScrollToBottomButton(outerGeo: outerGeo, proxy: proxy)
                 }
                 .onPreferenceChange(BottomAnchorPreferenceKey.self) { bottomY in
-                    let oldVal = isAtBottom
                     handleBottomAnchorChange(bottomY, containerHeight: outerGeo.size.height)
-                    if oldVal != isAtBottom {
-                        scrollLog.error("[SCROLL] \(Date()) preferenceChange isAtBottom: \(oldVal) -> \(isAtBottom), bottomY=\(Int(bottomY)), containerH=\(Int(outerGeo.size.height))")
-                    }
                 }
                 .onChange(of: searchResult) { _, newResult in
                     jumpToFirstMatch(newResult, proxy: proxy)
@@ -259,12 +257,6 @@ struct ChatView: View {
                 .anchorPreference(key: BottomAnchorPreferenceKey.self, value: .bottom) { anchor in
                     outerGeo[anchor].y
                 }
-                .onAppear {
-                    scrollLog.error("[SCROLL] \(Date()) Bottom.onAppear fired, msgs=\(viewModel.messages.count), isAtBottom=\(isAtBottom)")
-                    proxy.scrollTo("Bottom", anchor: .bottom)
-                    isAtBottom = true
-                    scrollLog.error("[SCROLL] \(Date()) Bottom.onAppear scroll done")
-                }
         }
         .padding()
         
@@ -273,28 +265,13 @@ struct ChatView: View {
         }
         .defaultScrollAnchor(.bottom)
         .modifier(ScrollEdgeEffectModifier())
-        .onChange(of: viewModel.messages) { old, new in
-            scrollLog.error("[SCROLL] \(Date()) messages changed: \(old.count) -> \(new.count), isAtBottom=\(isAtBottom), searchEmpty=\(searchQuery.isEmpty)")
+        .onChange(of: viewModel.messages) { _, _ in
             if isAtBottom && searchQuery.isEmpty {
                 Task {
                     try? await Task.sleep(nanoseconds: 50_000_000)
-                    scrollLog.error("[SCROLL] \(Date()) messages.onChange scrolling to bottom")
                     proxy.scrollTo("Bottom", anchor: .bottom)
                 }
             }
-        }
-        .onChange(of: viewModel.messages.count) { old, new in
-            scrollLog.error("[SCROLL] \(Date()) messages.count changed: \(old) -> \(new), isAtBottom=\(isAtBottom)")
-            if searchQuery.isEmpty && isAtBottom {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    scrollLog.error("[SCROLL] \(Date()) messages.count scrolling to bottom")
-                    proxy.scrollTo("Bottom", anchor: .bottom)
-                }
-            }
-        }
-        .onChange(of: viewModel.chatId) { old, new in
-            scrollLog.error("[SCROLL] \(Date()) chatId changed: \(old) -> \(new)")
-            isAtBottom = true
         }
     }
     
