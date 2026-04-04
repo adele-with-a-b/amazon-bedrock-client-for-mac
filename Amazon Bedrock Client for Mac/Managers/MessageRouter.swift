@@ -9,7 +9,7 @@ enum MessageComplexity: String {
     case complex  // Multi-step tasks, tool use, deep reasoning
 }
 
-class MessageRouter {
+final class MessageRouter: Sendable {
     static let shared = MessageRouter()
     private let logger = Logger(label: "MessageRouter")
     
