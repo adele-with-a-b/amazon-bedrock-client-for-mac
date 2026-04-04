@@ -863,25 +863,29 @@ class ChatManager: ObservableObject {
     private func loadChats() {
         let context = coreDataStack.viewContext
         let fetchRequest: NSFetchRequest<ChatEntity> = ChatEntity.fetchRequest()
+        fetchRequest.sortDescriptors = [NSSortDescriptor(key: "lastMessageDate", ascending: false)]
         
         do {
             let results = try context.fetch(fetchRequest)
             DispatchQueue.main.async {
-                var uniqueChats = [String: ChatModel]()
-                results.forEach { entity in
-                    let chatModel = ChatModel(
+                var seen = Set<String>()
+                var ordered = [ChatModel]()
+                for entity in results {
+                    let chatId = entity.chatId ?? ""
+                    guard !seen.contains(chatId) else { continue }
+                    seen.insert(chatId)
+                    ordered.append(ChatModel(
                         id: entity.id ?? "",
-                        chatId: entity.chatId ?? "",
+                        chatId: chatId,
                         name: entity.name ?? "",
                         title: entity.title ?? "",
                         description: entity.chatDescription ?? "",
                         provider: entity.provider ?? "",
                         lastMessageDate: entity.lastMessageDate ?? Date(),
                         isManuallyRenamed: entity.isManuallyRenamed
-                    )
-                    uniqueChats[chatModel.chatId] = chatModel
+                    ))
                 }
-                self.chats = Array(uniqueChats.values).sorted { $0.lastMessageDate > $1.lastMessageDate }
+                self.chats = ordered
             }
         } catch {
             logger.info("Failed to fetch chats: \(error)")
