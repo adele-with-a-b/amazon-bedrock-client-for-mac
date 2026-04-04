@@ -252,13 +252,17 @@ struct ChatView: View {
                 .anchorPreference(key: BottomAnchorPreferenceKey.self, value: .bottom) { anchor in
                     outerGeo[anchor].y
                 }
+                .onAppear {
+                    // Content is fully laid out — now scroll is reliable
+                    proxy.scrollTo("Bottom", anchor: .bottom)
+                    isAtBottom = true
+                }
         }
         .padding()
         
         return ScrollView {
             messageList
         }
-        .id(viewModel.chatId)
         .defaultScrollAnchor(.bottom)
         .modifier(ScrollEdgeEffectModifier())
         .onChange(of: viewModel.messages) { _, _ in
@@ -270,7 +274,6 @@ struct ChatView: View {
                 }
             }
         }
-        // Scroll to bottom whenever the count of messages changes (but not during search)
         .onChange(of: viewModel.messages.count) { _, _ in
             if searchQuery.isEmpty && isAtBottom {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
