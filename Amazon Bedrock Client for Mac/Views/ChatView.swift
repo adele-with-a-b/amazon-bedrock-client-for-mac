@@ -196,11 +196,14 @@ struct ChatView: View {
     
     // MARK: - Message Scroll View
     
+    @State private var scrollReady = false
+    
     private var messageScrollView: some View {
         GeometryReader { outerGeo in
             ScrollViewReader { proxy in
                 ZStack {
                     scrollableMessageList(outerGeo: outerGeo, proxy: proxy)
+                        .opacity(scrollReady ? 1 : 0)
                     enhancedScrollToBottomButton(outerGeo: outerGeo, proxy: proxy)
                 }
                 .onPreferenceChange(BottomAnchorPreferenceKey.self) { bottomY in
@@ -256,12 +259,13 @@ struct ChatView: View {
             }
             .padding()
         }
-        .id(viewModel.chatId) // Force fresh ScrollView per conversation
         .modifier(ScrollEdgeEffectModifier())
         .onAppear {
-            DispatchQueue.main.async {
+            // Wait for layout, scroll, then reveal
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 proxy.scrollTo("Bottom", anchor: .bottom)
                 isAtBottom = true
+                scrollReady = true
             }
         }
         .onChange(of: viewModel.messages.count) { _, _ in

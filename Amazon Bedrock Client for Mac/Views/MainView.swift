@@ -102,6 +102,7 @@ struct MainView: View {
             case .chat(let selectedChat):
                 ChatView(chatId: selectedChat.chatId, backendModel: backendModel)
                     .background(Color.background)
+                    .id(selectedChat.chatId)
             }
         } else {
             // Show loading or placeholder while initializing
