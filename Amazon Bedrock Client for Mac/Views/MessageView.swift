@@ -643,23 +643,32 @@ struct MessageView: View {
                 )
             }
             
-            // Tool use information display
+            // Tool use information display - compact inline style
             if let toolUse = message.toolUse {
-                ExpandableMarkdownItem(
-                    header: "Using tool: \(toolUse.name)",
-                    text: formatToolInput(toolUse.input),
-                    fontSize: fontSize + adjustedFontSize - 2,
-                    searchRanges: searchResult?.ranges ?? []
+                HStack(spacing: 6) {
+                    Image(systemName: "wrench.and.screwdriver")
+                        .font(.system(size: fontSize + adjustedFontSize - 4))
+                        .foregroundColor(.secondary)
+                    Text(toolUse.name)
+                        .font(.system(size: fontSize + adjustedFontSize - 2, weight: .medium, design: .monospaced))
+                        .foregroundColor(.secondary)
+                }
+                .padding(.vertical, 4)
+                .padding(.horizontal, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(colorScheme == .dark ?
+                              Color.white.opacity(0.05) :
+                              Color.black.opacity(0.03))
                 )
                 .padding(.vertical, 2)
             }
 
-            // Expandable tool result section
+            // Tool result displayed naturally as content
             if let toolResult = message.toolResult, !toolResult.isEmpty {
-                ExpandableMarkdownItem(
-                    header: "Tool Result",
+                LazyMarkdownView(
                     text: toolResult,
-                    fontSize: fontSize + adjustedFontSize - 2,
+                    fontSize: fontSize + adjustedFontSize - 1,
                     searchRanges: searchResult?.ranges ?? []
                 )
                 .padding(.vertical, 2)
@@ -882,13 +891,13 @@ struct MessageView: View {
     
     private var messageHeader: some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
-            Text(message.user)
+            Text(message.user == "User" ? "You" : "Assistant")
                 .font(.system(size: fontSize + adjustedFontSize, weight: .semibold))
-                .foregroundColor(.primary) // Original color
+                .foregroundColor(.primary)
             
             Text(format(date: message.sentTime))
                 .font(.system(size: fontSize + adjustedFontSize - 2))
-                .foregroundColor(.secondary) // Original color
+                .foregroundColor(.secondary)
         }
     }
     

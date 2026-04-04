@@ -491,6 +491,9 @@ struct FirstResponderTextView: NSViewRepresentable {
             textView.isRichText = false
             textView.isAutomaticQuoteSubstitutionEnabled = false
             textView.allowsUndo = true
+            textView.isContinuousSpellCheckingEnabled = true
+            textView.isAutomaticSpellingCorrectionEnabled = true
+            textView.isGrammarCheckingEnabled = true
             textView.becomeFirstResponder()
             
             textView.textContainerInset = CGSize(width: 5, height: 10)

@@ -948,7 +948,7 @@ class ChatViewModel: ObservableObject {
                     // If first message, create initial message with thinking if available
                     let initialMessage = MessageData(
                         id: messageId,
-                        text: streamedText.isEmpty ? "Analyzing your request..." : streamedText,
+                        text: streamedText.isEmpty ? "" : streamedText,
                         thinking: thinking,
                         signature: thinkingSignature,
                         user: chatModel.name,
@@ -1053,7 +1053,7 @@ class ChatViewModel: ObservableObject {
                                 signature: existingSignature
                             )),
                             .text(preservedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?
-                                          "Analyzing your request..." : preservedText),
+                                          " " : preservedText),
                             .tooluse(MessageContent.ToolUseContent(
                                 toolUseId: toolUseInfo.toolUseId,
                                 name: toolUseInfo.name,
@@ -1068,7 +1068,7 @@ class ChatViewModel: ObservableObject {
                         role: .assistant,
                         content: [
                             .text(preservedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?
-                                          "Analyzing your request..." : preservedText),
+                                          " " : preservedText),
                             .tooluse(MessageContent.ToolUseContent(
                                 toolUseId: toolUseInfo.toolUseId,
                                 name: toolUseInfo.name,
