@@ -263,6 +263,13 @@ struct ChatView: View {
             proxy.scrollTo("Bottom", anchor: .bottom)
             isAtBottom = true
         }
+        .onAppear {
+            // Scroll to bottom once messages are loaded from disk
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                proxy.scrollTo("Bottom", anchor: .bottom)
+                isAtBottom = true
+            }
+        }
     }
     
     private func enhancedScrollToBottomButton(
