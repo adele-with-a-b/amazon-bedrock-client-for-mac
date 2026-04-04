@@ -7,6 +7,9 @@
 
 import SwiftUI
 import Combine
+import os
+
+private let scrollLog = Logger(subsystem: "com.amazon.bedrock", category: "scroll")
 
 struct BottomAnchorPreferenceKey: PreferenceKey {
     typealias Value = CGFloat
@@ -207,7 +210,7 @@ struct ChatView: View {
                     let oldVal = isAtBottom
                     handleBottomAnchorChange(bottomY, containerHeight: outerGeo.size.height)
                     if oldVal != isAtBottom {
-                        NSLog("[SCROLL-DEBUG] \(Date()) preferenceChange isAtBottom: \(oldVal) -> \(isAtBottom), bottomY=\(Int(bottomY)), containerH=\(Int(outerGeo.size.height))")
+                        scrollLog.info("[SCROLL] \(Date()) preferenceChange isAtBottom: \(oldVal) -> \(isAtBottom), bottomY=\(Int(bottomY)), containerH=\(Int(outerGeo.size.height))")
                     }
                 }
                 .onChange(of: searchResult) { _, newResult in
@@ -257,10 +260,10 @@ struct ChatView: View {
                     outerGeo[anchor].y
                 }
                 .onAppear {
-                    NSLog("[SCROLL-DEBUG] \(Date()) Bottom.onAppear fired, msgs=\(viewModel.messages.count), isAtBottom=\(isAtBottom)")
+                    scrollLog.info("[SCROLL] \(Date()) Bottom.onAppear fired, msgs=\(viewModel.messages.count), isAtBottom=\(isAtBottom)")
                     proxy.scrollTo("Bottom", anchor: .bottom)
                     isAtBottom = true
-                    NSLog("[SCROLL-DEBUG] \(Date()) Bottom.onAppear scroll done")
+                    scrollLog.info("[SCROLL] \(Date()) Bottom.onAppear scroll done")
                 }
         }
         .padding()
@@ -271,26 +274,26 @@ struct ChatView: View {
         .defaultScrollAnchor(.bottom)
         .modifier(ScrollEdgeEffectModifier())
         .onChange(of: viewModel.messages) { old, new in
-            NSLog("[SCROLL-DEBUG] \(Date()) messages changed: \(old.count) -> \(new.count), isAtBottom=\(isAtBottom), searchEmpty=\(searchQuery.isEmpty)")
+            scrollLog.info("[SCROLL] \(Date()) messages changed: \(old.count) -> \(new.count), isAtBottom=\(isAtBottom), searchEmpty=\(searchQuery.isEmpty)")
             if isAtBottom && searchQuery.isEmpty {
                 Task {
                     try? await Task.sleep(nanoseconds: 50_000_000)
-                    NSLog("[SCROLL-DEBUG] \(Date()) messages.onChange scrolling to bottom")
+                    scrollLog.info("[SCROLL] \(Date()) messages.onChange scrolling to bottom")
                     proxy.scrollTo("Bottom", anchor: .bottom)
                 }
             }
         }
         .onChange(of: viewModel.messages.count) { old, new in
-            NSLog("[SCROLL-DEBUG] \(Date()) messages.count changed: \(old) -> \(new), isAtBottom=\(isAtBottom)")
+            scrollLog.info("[SCROLL] \(Date()) messages.count changed: \(old) -> \(new), isAtBottom=\(isAtBottom)")
             if searchQuery.isEmpty && isAtBottom {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    NSLog("[SCROLL-DEBUG] \(Date()) messages.count scrolling to bottom")
+                    scrollLog.info("[SCROLL] \(Date()) messages.count scrolling to bottom")
                     proxy.scrollTo("Bottom", anchor: .bottom)
                 }
             }
         }
         .onChange(of: viewModel.chatId) { old, new in
-            NSLog("[SCROLL-DEBUG] \(Date()) chatId changed: \(old) -> \(new)")
+            scrollLog.info("[SCROLL] \(Date()) chatId changed: \(old) -> \(new)")
             isAtBottom = true
         }
     }
