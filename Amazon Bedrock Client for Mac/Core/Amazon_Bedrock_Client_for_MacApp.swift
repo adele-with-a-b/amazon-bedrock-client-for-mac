@@ -16,8 +16,8 @@ struct CustomLogHandler: LogHandler {
     
     /// Shared file handle for log output
     private static let logFileHandle: FileHandle? = {
-        let logDir = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Amazon Bedrock Client")
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let logDir = appSupport.appendingPathComponent("Amazon Bedrock")
         try? FileManager.default.createDirectory(at: logDir, withIntermediateDirectories: true)
         let logPath = logDir.appendingPathComponent("bedrock.log").path
         FileManager.default.createFile(atPath: logPath, contents: nil)
@@ -93,6 +93,41 @@ struct Amazon_Bedrock_Client_for_MacApp: App {
             #endif
             
             return handler
+        }
+        
+        // Migrate data from ~/Amazon Bedrock Client/ to ~/Library/Application Support/Amazon Bedrock/
+        Self.migrateDataDirectory()
+    }
+    
+    private static func migrateDataDirectory() {
+        let fm = FileManager.default
+        let oldDir = fm.homeDirectoryForCurrentUser.appendingPathComponent("Amazon Bedrock Client")
+        let newDir = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("Amazon Bedrock")
+        
+        guard fm.fileExists(atPath: oldDir.path) else { return }
+        
+        try? fm.createDirectory(at: newDir, withIntermediateDirectories: true)
+        
+        if let contents = try? fm.contentsOfDirectory(atPath: oldDir.path) {
+            for item in contents {
+                let src = oldDir.appendingPathComponent(item)
+                let dst = newDir.appendingPathComponent(item)
+                if !fm.fileExists(atPath: dst.path) {
+                    try? fm.moveItem(at: src, to: dst)
+                }
+            }
+        }
+        
+        // Remove old directory if empty
+        if let remaining = try? fm.contentsOfDirectory(atPath: oldDir.path), remaining.isEmpty {
+            try? fm.removeItem(at: oldDir)
+        }
+        
+        // Clear cached old path from UserDefaults
+        let oldPath = oldDir.path
+        if UserDefaults.standard.string(forKey: "defaultDirector") == oldPath {
+            UserDefaults.standard.removeObject(forKey: "defaultDirector")
         }
     }
     

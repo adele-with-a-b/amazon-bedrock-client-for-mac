@@ -32,9 +32,10 @@ class SettingManager: ObservableObject {
     @AppStorage("enableModelThinking") var enableModelThinking: Bool = true
     @AppStorage("showUsageInfo") var showUsageInfo: Bool = true
     @AppStorage("systemPrompt") var systemPrompt: String = ""
-    @AppStorage("defaultDirector") var defaultDirectory: String = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
-        "Amazon Bedrock Client"
-    ).path
+    @AppStorage("defaultDirector") var defaultDirectory: String = {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        return appSupport.appendingPathComponent("Amazon Bedrock").path
+    }()
     @AppStorage("defaultModelId") var defaultModelId: String = ""
     @AppStorage("maxToolUseTurns") var maxToolUseTurns: Int = 10
     

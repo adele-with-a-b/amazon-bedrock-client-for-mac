@@ -1749,8 +1749,8 @@ extension NSImage {
             // Read defaultDirectory from UserDefaults (same key as @AppStorage in SettingManager)
             // This avoids MainActor issues while staying in sync with SettingManager
             let defaultDir = UserDefaults.standard.string(forKey: "defaultDirector")
-                ?? FileManager.default.homeDirectoryForCurrentUser
-                    .appendingPathComponent("Amazon Bedrock Client").path
+                ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+                    .appendingPathComponent("Amazon Bedrock").path
             let baseDir = URL(fileURLWithPath: defaultDir)
             let filePath = baseDir.appendingPathComponent("generated_images/\(base64Encoded).png")
             guard let imageData = try? Data(contentsOf: filePath) else {
