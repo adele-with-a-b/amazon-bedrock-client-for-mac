@@ -663,15 +663,6 @@ struct MessageView: View {
                 )
                 .padding(.vertical, 2)
             }
-
-            // Tool result displayed naturally as content
-            if let toolResult = message.toolResult, !toolResult.isEmpty {
-                LazyMarkdownView(
-                    text: toolResult,
-                    fontSize: fontSize + adjustedFontSize - 1,
-                    searchRanges: searchResult?.ranges ?? []
-                )
-                .padding(.vertical, 2)
             }
         }
         .sheet(isPresented: $viewModel.isShowingImageModal) {

@@ -493,7 +493,12 @@ struct FirstResponderTextView: NSViewRepresentable {
             textView.allowsUndo = true
             textView.isContinuousSpellCheckingEnabled = true
             textView.isAutomaticSpellingCorrectionEnabled = true
+            textView.isAutomaticTextReplacementEnabled = true
             textView.isGrammarCheckingEnabled = true
+            textView.isAutomaticTextCompletionEnabled = true
+            textView.enabledTextCheckingTypes = NSTextCheckingResult.CheckingType.spelling.rawValue
+                | NSTextCheckingResult.CheckingType.correction.rawValue
+                | NSTextCheckingResult.CheckingType.grammar.rawValue
             textView.becomeFirstResponder()
             
             textView.textContainerInset = CGSize(width: 5, height: 10)
