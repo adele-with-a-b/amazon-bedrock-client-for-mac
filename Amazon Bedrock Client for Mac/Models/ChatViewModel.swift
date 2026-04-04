@@ -177,6 +177,12 @@ class ChatViewModel: ObservableObject {
     @ObservedObject var backendModel: BackendModel
     @Published var chatModel: ChatModel
     @Published var messages: [MessageData] = []
+    
+    private var allMessages: [MessageData] = []
+    private let pageSize = 10
+    @Published var hasOlderMessages = false
+    @Published var isLoadingOlder = false
+    
     @Published var userInput: String = ""
     @Published var isMessageBarDisabled: Bool = false
     
@@ -341,11 +347,23 @@ class ChatViewModel: ObservableObject {
     
     // MARK: - Public Methods
     
+    private func vmLog(_ msg: String) {
+        let ts = ISO8601DateFormatter().string(from: Date())
+        let line = "[\(ts)] VM: \(msg)\n"
+        let path = "/tmp/bedrock_scroll.log"
+        if let fh = FileHandle(forWritingAtPath: path) {
+            fh.seekToEndOfFile()
+            fh.write(line.data(using: .utf8)!)
+            fh.closeFile()
+        } else {
+            FileManager.default.createFile(atPath: path, contents: line.data(using: .utf8))
+        }
+    }
+    
     func loadInitialData() {
         var loadedMessages = chatManager.getMessages(for: chatId)
         
         // Mark tool result messages with "ToolResult" user so they are hidden in UI
-        // Tool result messages have: user == "User", toolUse != nil, toolResult != nil
         for i in 0..<loadedMessages.count {
             if loadedMessages[i].user == "User" &&
                loadedMessages[i].toolUse != nil &&
@@ -354,7 +372,39 @@ class ChatViewModel: ObservableObject {
             }
         }
         
-        messages = loadedMessages
+        allMessages = loadedMessages
+        vmLog("loadInitialData: total=\(allMessages.count), pageSize=\(pageSize)")
+        
+        // Show only the last page
+        if allMessages.count > pageSize {
+            messages = Array(allMessages.suffix(pageSize))
+            hasOlderMessages = true
+            vmLog("loadInitialData: showing last \(messages.count), hasOlder=true, firstId=\(messages.first?.id.uuidString ?? "nil"), lastId=\(messages.last?.id.uuidString ?? "nil")")
+        } else {
+            messages = allMessages
+            hasOlderMessages = false
+            vmLog("loadInitialData: showing all \(messages.count), hasOlder=false")
+        }
+    }
+    
+    func loadOlderMessages() {
+        guard hasOlderMessages, !isLoadingOlder else {
+            vmLog("loadOlderMessages: SKIPPED hasOlder=\(hasOlderMessages) isLoading=\(isLoadingOlder)")
+            return
+        }
+        isLoadingOlder = true
+        vmLog("loadOlderMessages: START, current=\(messages.count), total=\(allMessages.count)")
+        
+        // Load all remaining older messages at once — they're already in memory
+        let currentCount = messages.count
+        let remaining = allMessages.count - currentCount
+        let olderSlice = Array(allMessages[0..<remaining])
+        
+        vmLog("loadOlderMessages: prepending \(olderSlice.count) messages")
+        messages = olderSlice + messages
+        hasOlderMessages = false
+        isLoadingOlder = false
+        vmLog("loadOlderMessages: DONE, msgs=\(messages.count), hasOlder=false")
     }
     
     func sendMessage() {
@@ -1169,6 +1219,7 @@ class ChatViewModel: ObservableObject {
                     toolResult: resultText
                 )
                 messages.append(toolResultMsg)
+                allMessages.append(toolResultMsg)
                 
                 // Save to persistent storage
                 await saveFromUIMessages()
@@ -1345,7 +1396,7 @@ class ChatViewModel: ObservableObject {
                     isError: false,
                     sentTime: Date()
                 )
-                self.messages.append(newMessage)
+                self.messages.append(newMessage); self.allMessages.append(newMessage)
             } else {
                 if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
                     self.messages[index].text += text
@@ -1371,7 +1422,7 @@ class ChatViewModel: ObservableObject {
                     // Still buffering — create message placeholder if needed
                     if shouldCreateNewMessage {
                         let newMessage = MessageData(id: messageId, text: "", thinking: "", user: self.chatModel.name, isError: false, sentTime: Date())
-                        self.messages.append(newMessage)
+                        self.messages.append(newMessage); self.allMessages.append(newMessage)
                     }
                     return
                 }
@@ -1386,7 +1437,7 @@ class ChatViewModel: ObservableObject {
                     self.messages[index].thinking = stripped
                 } else if shouldCreateNewMessage {
                     let newMessage = MessageData(id: messageId, text: "", thinking: stripped, user: self.chatModel.name, isError: false, sentTime: Date())
-                    self.messages.append(newMessage)
+                    self.messages.append(newMessage); self.allMessages.append(newMessage)
                 }
                 self.objectWillChange.send()
                 return

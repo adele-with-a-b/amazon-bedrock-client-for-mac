@@ -8,6 +8,21 @@
 import SwiftUI
 import Combine
 
+// MARK: - Flipped ScrollView support for chat UI
+private struct FlippedUpsideDown: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .rotationEffect(.radians(.pi))
+            .scaleEffect(x: -1, y: 1, anchor: .center)
+    }
+}
+
+extension View {
+    func flippedUpsideDown() -> some View {
+        modifier(FlippedUpsideDown())
+    }
+}
+
 struct BottomAnchorPreferenceKey: PreferenceKey {
     typealias Value = CGFloat
     nonisolated(unsafe) static var defaultValue: CGFloat = 0
@@ -203,9 +218,6 @@ struct ChatView: View {
                     scrollableMessageList(outerGeo: outerGeo, proxy: proxy)
                     enhancedScrollToBottomButton(outerGeo: outerGeo, proxy: proxy)
                 }
-                .onPreferenceChange(BottomAnchorPreferenceKey.self) { bottomY in
-                    handleBottomAnchorChange(bottomY, containerHeight: outerGeo.size.height)
-                }
                 .onChange(of: searchResult) { _, newResult in
                     jumpToFirstMatch(newResult, proxy: proxy)
                 }
@@ -220,62 +232,67 @@ struct ChatView: View {
         outerGeo: GeometryProxy,
         proxy: ScrollViewProxy
     ) -> some View {
-        let messageList = VStack(spacing: 2) {
-            ForEach(Array(viewModel.messages.enumerated()), id: \.offset) { idx, message in
-                MessageView(
-                    message: message, 
-                    searchResult: getSearchResultForMessage(idx),
-                    adjustedFontSize: CGFloat(adjustedFontSize)
-                )
-                    .id(idx)
+        ScrollView {
+            LazyVStack(spacing: 2) {
+                // Processing indicator (at visual bottom = data top in flipped scroll)
+                if viewModel.isMessageBarDisabled {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .scaleEffect(0.6)
+                            .frame(width: 14, height: 14)
+                        Text("Processing…")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .transition(.opacity)
+                    .flippedUpsideDown()
+                }
+                
+                // Messages in reverse order (newest first = visual bottom in flipped scroll)
+                ForEach(viewModel.messages.reversed(), id: \.id) { message in
+                    MessageView(
+                        message: message,
+                        searchResult: nil,
+                        adjustedFontSize: CGFloat(adjustedFontSize)
+                    )
+                    .id(message.id)
                     .frame(maxWidth: .infinity)
-            }
-            
-            // Processing indicator
-            if viewModel.isMessageBarDisabled {
-                HStack(spacing: 8) {
+                    .flippedUpsideDown()
+                    .onAppear {
+                        if message.id == viewModel.messages.last?.id {
+                            isAtBottom = true
+                        }
+                    }
+                    .onDisappear {
+                        if message.id == viewModel.messages.last?.id {
+                            isAtBottom = false
+                        }
+                    }
+                }
+                
+                // Pagination trigger (at visual top = end of flipped scroll)
+                if viewModel.hasOlderMessages {
                     ProgressView()
-                        .scaleEffect(0.6)
-                        .frame(width: 14, height: 14)
-                    Text("Processing…")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .scaleEffect(0.7)
+                        .frame(maxWidth: .infinity)
+                        .padding(8)
+                        .flippedUpsideDown()
+                        .onAppear {
+                            viewModel.loadOlderMessages()
+                        }
                 }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
-                .transition(.opacity)
             }
-            
-            Color.clear
-                .frame(height: 1)
-                .id("Bottom")
-                .anchorPreference(key: BottomAnchorPreferenceKey.self, value: .bottom) { anchor in
-                    outerGeo[anchor].y
-                }
+            .padding()
         }
-        .padding()
-        
-        return ScrollView {
-            messageList
-        }
+        .flippedUpsideDown()
         .modifier(ScrollEdgeEffectModifier())
-        .onChange(of: viewModel.messages) { _, _ in
-            // If the user was at bottom and not searching, wait briefly for layout and scroll down again
-            if isAtBottom && searchQuery.isEmpty {
-                Task {
-                    try? await Task.sleep(nanoseconds: 50_000_000) // 0.05s
-                    proxy.scrollTo("Bottom", anchor: .bottom)
-                }
-            }
-        }
-        // Scroll to bottom whenever the count of messages changes (but not during search)
-        .onChange(of: viewModel.messages.count) { oldCount, newCount in
-            if searchQuery.isEmpty {
-                // On initial load (0 -> N), use longer delay for layout
-                let delay = oldCount == 0 ? 0.3 : 0.05
-                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                    proxy.scrollTo("Bottom", anchor: .bottom)
-                    if oldCount == 0 { isAtBottom = true }
+        .onChange(of: viewModel.messages.count) { _, _ in
+            // When new messages arrive (user sends/receives), scroll to bottom
+            if isAtBottom {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    proxy.scrollTo(viewModel.messages.last?.id, anchor: .bottom)
                 }
             }
         }
@@ -293,7 +310,7 @@ struct ChatView: View {
                         Spacer()
                         Button {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                proxy.scrollTo("Bottom", anchor: .bottom)
+                                proxy.scrollTo(viewModel.messages.last?.id, anchor: .bottom)
                                 isAtBottom = true
                             }
                         } label: {
@@ -499,6 +516,7 @@ struct ChatView: View {
         currentMatchIndex = 0
         searchDebounceTimer?.invalidate()
     }
+    
     
     private func getSearchResultForMessage(_ messageIndex: Int) -> SearchMatch? {
         return searchResult.matches.first { $0.messageIndex == messageIndex }
