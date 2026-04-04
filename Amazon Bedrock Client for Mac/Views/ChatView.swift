@@ -210,7 +210,7 @@ struct ChatView: View {
                     let oldVal = isAtBottom
                     handleBottomAnchorChange(bottomY, containerHeight: outerGeo.size.height)
                     if oldVal != isAtBottom {
-                        scrollLog.info("[SCROLL] \(Date()) preferenceChange isAtBottom: \(oldVal) -> \(isAtBottom), bottomY=\(Int(bottomY)), containerH=\(Int(outerGeo.size.height))")
+                        scrollLog.error("[SCROLL] \(Date()) preferenceChange isAtBottom: \(oldVal) -> \(isAtBottom), bottomY=\(Int(bottomY)), containerH=\(Int(outerGeo.size.height))")
                     }
                 }
                 .onChange(of: searchResult) { _, newResult in
@@ -260,10 +260,10 @@ struct ChatView: View {
                     outerGeo[anchor].y
                 }
                 .onAppear {
-                    scrollLog.info("[SCROLL] \(Date()) Bottom.onAppear fired, msgs=\(viewModel.messages.count), isAtBottom=\(isAtBottom)")
+                    scrollLog.error("[SCROLL] \(Date()) Bottom.onAppear fired, msgs=\(viewModel.messages.count), isAtBottom=\(isAtBottom)")
                     proxy.scrollTo("Bottom", anchor: .bottom)
                     isAtBottom = true
-                    scrollLog.info("[SCROLL] \(Date()) Bottom.onAppear scroll done")
+                    scrollLog.error("[SCROLL] \(Date()) Bottom.onAppear scroll done")
                 }
         }
         .padding()
@@ -274,26 +274,26 @@ struct ChatView: View {
         .defaultScrollAnchor(.bottom)
         .modifier(ScrollEdgeEffectModifier())
         .onChange(of: viewModel.messages) { old, new in
-            scrollLog.info("[SCROLL] \(Date()) messages changed: \(old.count) -> \(new.count), isAtBottom=\(isAtBottom), searchEmpty=\(searchQuery.isEmpty)")
+            scrollLog.error("[SCROLL] \(Date()) messages changed: \(old.count) -> \(new.count), isAtBottom=\(isAtBottom), searchEmpty=\(searchQuery.isEmpty)")
             if isAtBottom && searchQuery.isEmpty {
                 Task {
                     try? await Task.sleep(nanoseconds: 50_000_000)
-                    scrollLog.info("[SCROLL] \(Date()) messages.onChange scrolling to bottom")
+                    scrollLog.error("[SCROLL] \(Date()) messages.onChange scrolling to bottom")
                     proxy.scrollTo("Bottom", anchor: .bottom)
                 }
             }
         }
         .onChange(of: viewModel.messages.count) { old, new in
-            scrollLog.info("[SCROLL] \(Date()) messages.count changed: \(old) -> \(new), isAtBottom=\(isAtBottom)")
+            scrollLog.error("[SCROLL] \(Date()) messages.count changed: \(old) -> \(new), isAtBottom=\(isAtBottom)")
             if searchQuery.isEmpty && isAtBottom {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    scrollLog.info("[SCROLL] \(Date()) messages.count scrolling to bottom")
+                    scrollLog.error("[SCROLL] \(Date()) messages.count scrolling to bottom")
                     proxy.scrollTo("Bottom", anchor: .bottom)
                 }
             }
         }
         .onChange(of: viewModel.chatId) { old, new in
-            scrollLog.info("[SCROLL] \(Date()) chatId changed: \(old) -> \(new)")
+            scrollLog.error("[SCROLL] \(Date()) chatId changed: \(old) -> \(new)")
             isAtBottom = true
         }
     }
