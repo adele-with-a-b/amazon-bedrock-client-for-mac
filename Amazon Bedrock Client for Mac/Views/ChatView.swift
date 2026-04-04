@@ -258,6 +258,7 @@ struct ChatView: View {
         return ScrollView {
             messageList
         }
+        .id(viewModel.chatId)
         .defaultScrollAnchor(.bottom)
         .modifier(ScrollEdgeEffectModifier())
         .onChange(of: viewModel.messages) { _, _ in
