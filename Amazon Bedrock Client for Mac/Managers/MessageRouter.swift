@@ -1,5 +1,6 @@
 import Foundation
 import Logging
+import AWSBedrockRuntime
 
 /// Routes messages to the appropriate model tier based on complexity
 enum MessageComplexity: String {
@@ -135,10 +136,15 @@ class MessageRouter {
         """
         
         do {
-            let response = try await backend.converse(
-                modelId: modelId,
-                messages: [.init(content: [.text(classifierPrompt)], role: .user)]
+            let msg = BedrockRuntimeClientTypes.Message(
+                content: [.text(classifierPrompt)],
+                role: .user
             )
+            let input = ConverseInput(
+                messages: [msg],
+                modelId: modelId
+            )
+            let response = try await backend.bedrockRuntimeClient.converse(input: input)
             
             if case .message(let output) = response.output,
                let content = output.content?.first,
@@ -151,6 +157,6 @@ class MessageRouter {
             logger.error("Haiku classifier failed: \(error)")
         }
         
-        return .medium // Default fallback
+        return .medium
     }
 }
