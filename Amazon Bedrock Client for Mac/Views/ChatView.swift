@@ -198,6 +198,7 @@ struct ChatView: View {
     // MARK: - Message Scroll View
     
     @State private var messagesLoaded = false
+    @State private var scrollReady = false
     
     private var messageScrollView: some View {
         GeometryReader { outerGeo in
@@ -205,6 +206,7 @@ struct ChatView: View {
                 ZStack {
                     if messagesLoaded {
                         scrollableMessageList(outerGeo: outerGeo, proxy: proxy)
+                            .opacity(scrollReady ? 1 : 0)
                     }
                     enhancedScrollToBottomButton(outerGeo: outerGeo, proxy: proxy)
                 }
@@ -219,30 +221,14 @@ struct ChatView: View {
                 }
                 .onChange(of: messagesLoaded) { _, loaded in
                     if loaded {
-                        debugLog("messagesLoaded=true, msgs=\(viewModel.messages.count)")
-                        // Try multiple delays to find the sweet spot
-                        for ms in [100, 300, 500, 1000, 2000] {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + Double(ms)/1000.0) {
-                                debugLog("\(ms)ms: isAtBottom=\(self.isAtBottom)")
-                                proxy.scrollTo("Bottom", anchor: .bottom)
-                            }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            proxy.scrollTo("Bottom", anchor: .bottom)
+                            isAtBottom = true
+                            scrollReady = true
                         }
                     }
                 }
             }
-        }
-    }
-    
-    private func debugLog(_ msg: String) {
-        let ts = ISO8601DateFormatter().string(from: Date())
-        let line = "[\(ts)] \(msg)\n"
-        let path = "/tmp/bedrock_scroll.log"
-        if let fh = FileHandle(forWritingAtPath: path) {
-            fh.seekToEndOfFile()
-            fh.write(line.data(using: .utf8)!)
-            fh.closeFile()
-        } else {
-            FileManager.default.createFile(atPath: path, contents: line.data(using: .utf8))
         }
     }
     
