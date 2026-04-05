@@ -91,11 +91,11 @@ final class MessageRouter: Sendable {
         // Try RouteLLM sidecar
         if let score = await queryRouteLLM(prompt: message) {
             // score > 0.5 = strong model needed, < 0.5 = weak model fine
-            // Map to 3 tiers: <0.45 simple, 0.45-0.52 medium, >0.52 complex
+            // Map to 3 tiers: <0.44 simple, 0.44-0.47 medium, >0.47 complex
             let complexity: MessageComplexity
-            if score < 0.45 {
+            if score < 0.44 {
                 complexity = .simple
-            } else if score < 0.52 {
+            } else if score < 0.47 {
                 complexity = .medium
             } else {
                 complexity = .complex
