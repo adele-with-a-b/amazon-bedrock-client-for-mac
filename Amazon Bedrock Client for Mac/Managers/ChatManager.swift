@@ -38,8 +38,9 @@ struct Message: Codable, Identifiable {
     var pastedTexts: [PastedTextInfo]?  // Pasted text attachments
     
     // Video generation
-    var videoUrl: URL?  // Local URL for generated video
-    var videoS3Uri: String?  // S3 URI for video reference
+    var videoUrl: URL?
+    var videoS3Uri: String?
+    var usageInfo: String?
     
     // Tool use is a separate concern - not mixed with message text
     var toolUse: ToolUse?
@@ -774,6 +775,7 @@ class ChatManager: ObservableObject {
                     pastedTexts: message.pastedTexts,
                     toolUse: toolUse,
                     toolResult: message.toolUse?.result,
+                    usageInfo: message.usageInfo,
                     videoUrl: message.videoUrl,
                     videoS3Uri: message.videoS3Uri
                 )

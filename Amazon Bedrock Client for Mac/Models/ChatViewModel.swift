@@ -1742,6 +1742,7 @@ class ChatViewModel: ObservableObject {
                 pastedTexts: messageData.pastedTexts,
                 videoUrl: messageData.videoUrl,
                 videoS3Uri: messageData.videoS3Uri,
+                usageInfo: messageData.usageInfo,
                 toolUse: toolUse
             )
             
