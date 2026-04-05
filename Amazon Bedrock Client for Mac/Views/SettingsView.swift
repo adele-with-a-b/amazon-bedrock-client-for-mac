@@ -129,6 +129,39 @@ struct GeneralSettingsView: View {
     @State private var tempHotkeyKeyCode: UInt32 = 0
     @State private var modelSelection: SidebarSelection?
     
+    @ViewBuilder
+    private func agentRow(_ agent: SystemPromptTemplate) -> some View {
+        let skills = PromptTemplateManager.shared.agentSkills[agent.id] ?? []
+        DisclosureGroup {
+            VStack(alignment: .leading, spacing: 6) {
+                if let promptFile = agent.promptFile {
+                    LabeledContent("Prompt") {
+                        Text(promptFile).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                    }
+                }
+                if let pinned = agent.pinnedModelId {
+                    LabeledContent("Pinned Model") {
+                        Text(pinned).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                if !skills.isEmpty {
+                    LabeledContent("Skills (\(skills.count))") {
+                        VStack(alignment: .trailing, spacing: 2) {
+                            ForEach(skills) { skill in
+                                Text(skill.name).font(.caption).foregroundStyle(.orange)
+                            }
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack {
+                Image(systemName: "person.crop.circle.fill").foregroundStyle(.blue)
+                Text(agent.name)
+            }
+        }
+    }
+    
     var body: some View {
         Form {
             // AWS Configuration
@@ -275,6 +308,24 @@ struct GeneralSettingsView: View {
                 }
                 
                 SystemPromptSection()
+            }
+            
+            Section("Agents") {
+                let agents = PromptTemplateManager.shared.agents
+                if agents.isEmpty {
+                    Text("No agents configured")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                }
+                ForEach(agents) { agent in
+                    agentRow(agent)
+                }
+                Button {
+                    NSWorkspace.shared.open(PromptTemplateManager.shared.agentsDirectory)
+                } label: {
+                    Label("Open Agents Folder", systemImage: "folder")
+                }
+                .buttonStyle(.borderless)
             }
         }
         .formStyle(.grouped)
