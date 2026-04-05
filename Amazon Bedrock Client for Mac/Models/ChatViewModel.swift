@@ -351,19 +351,6 @@ class ChatViewModel: ObservableObject {
     
     // MARK: - Public Methods
     
-    private func vmLog(_ msg: String) {
-        let ts = ISO8601DateFormatter().string(from: Date())
-        let line = "[\(ts)] VM: \(msg)\n"
-        let path = "/tmp/bedrock_scroll.log"
-        if let fh = FileHandle(forWritingAtPath: path) {
-            fh.seekToEndOfFile()
-            fh.write(line.data(using: .utf8)!)
-            fh.closeFile()
-        } else {
-            FileManager.default.createFile(atPath: path, contents: line.data(using: .utf8))
-        }
-    }
-    
     func loadInitialData() {
         var loadedMessages = chatManager.getMessages(for: chatId)
         
@@ -384,38 +371,38 @@ class ChatViewModel: ObservableObject {
         }
         
         allMessages = loadedMessages
-        vmLog("loadInitialData: total=\(allMessages.count), pageSize=\(pageSize)")
+        logger.debug("loadInitialData: total=\(allMessages.count), pageSize=\(pageSize)")
         
         // Show only the last page
         if allMessages.count > pageSize {
             messages = Array(allMessages.suffix(pageSize))
             hasOlderMessages = true
-            vmLog("loadInitialData: showing last \(messages.count), hasOlder=true, firstId=\(messages.first?.id.uuidString ?? "nil"), lastId=\(messages.last?.id.uuidString ?? "nil")")
+            logger.debug("loadInitialData: showing last \(messages.count), hasOlder=true, firstId=\(messages.first?.id.uuidString ?? "nil"), lastId=\(messages.last?.id.uuidString ?? "nil")")
         } else {
             messages = allMessages
             hasOlderMessages = false
-            vmLog("loadInitialData: showing all \(messages.count), hasOlder=false")
+            logger.debug("loadInitialData: showing all \(messages.count), hasOlder=false")
         }
     }
     
     func loadOlderMessages() {
         guard hasOlderMessages, !isLoadingOlder else {
-            vmLog("loadOlderMessages: SKIPPED hasOlder=\(hasOlderMessages) isLoading=\(isLoadingOlder)")
+            logger.debug("loadOlderMessages: SKIPPED hasOlder=\(hasOlderMessages) isLoading=\(isLoadingOlder)")
             return
         }
         isLoadingOlder = true
-        vmLog("loadOlderMessages: START, current=\(messages.count), total=\(allMessages.count)")
+        logger.debug("loadOlderMessages: START, current=\(messages.count), total=\(allMessages.count)")
         
         // Load all remaining older messages at once — they're already in memory
         let currentCount = messages.count
         let remaining = allMessages.count - currentCount
         let olderSlice = Array(allMessages[0..<remaining])
         
-        vmLog("loadOlderMessages: prepending \(olderSlice.count) messages")
+        logger.debug("loadOlderMessages: prepending \(olderSlice.count) messages")
         messages = olderSlice + messages
         hasOlderMessages = false
         isLoadingOlder = false
-        vmLog("loadOlderMessages: DONE, msgs=\(messages.count), hasOlder=false")
+        logger.debug("loadOlderMessages: DONE, msgs=\(messages.count), hasOlder=false")
     }
     
     func sendMessage() {

@@ -20,8 +20,14 @@ struct CustomLogHandler: LogHandler {
         let logDir = appSupport.appendingPathComponent("Amazon Bedrock")
         try? FileManager.default.createDirectory(at: logDir, withIntermediateDirectories: true)
         let logPath = logDir.appendingPathComponent("bedrock.log").path
-        FileManager.default.createFile(atPath: logPath, contents: nil)
-        return FileHandle(forWritingAtPath: logPath)
+        if !FileManager.default.fileExists(atPath: logPath) {
+            FileManager.default.createFile(atPath: logPath, contents: nil)
+        }
+        guard let fh = FileHandle(forWritingAtPath: logPath) else { return nil }
+        fh.seekToEndOfFile()
+        let marker = "\n\n=== Session started \(ISO8601DateFormatter().string(from: Date())) ===\n"
+        fh.write(marker.data(using: .utf8)!)
+        return fh
     }()
     
     subscript(metadataKey key: String) -> Logger.Metadata.Value? {
@@ -85,13 +91,8 @@ struct Amazon_Bedrock_Client_for_MacApp: App {
         // Initialize logging system with standardized configuration
         LoggingSystem.bootstrap { label in
             var handler = CustomLogHandler(label: label)
-            
-            #if DEBUG
+            // Always use debug level — file logging is cheap, and we need it for diagnostics
             handler.logLevel = .debug
-            #else
-            handler.logLevel = .info
-            #endif
-            
             return handler
         }
         
