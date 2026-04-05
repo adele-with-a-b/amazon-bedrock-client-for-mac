@@ -338,6 +338,7 @@ class PromptTemplateManager: ObservableObject {
     @Published var lastTriggeredSkills: [String] = []
     
     /// Get skills that match a user message for the currently selected agent
+    /// Supports force-invoke with @skill:SkillName prefix
     func matchedSkillContent(for userMessage: String) -> String? {
         guard let id = selectedTemplateId,
               let skills = agentSkills[id] else {
@@ -345,7 +346,24 @@ class PromptTemplateManager: ObservableObject {
             return nil
         }
         
-        let matched = skills.filter { $0.matches(userMessage) }
+        // Check for force-invoke: @skill:Name
+        let forcePattern = "@skill:"
+        var matched: [SkillMetadata] = []
+        if userMessage.hasPrefix(forcePattern) {
+            let nameEnd = userMessage.index(forcePattern.endIndex, offsetBy: 0)
+            let rest = userMessage[nameEnd...]
+            let forceName = String(rest.prefix(while: { !$0.isWhitespace }))
+            if let skill = skills.first(where: { $0.name.lowercased() == forceName.lowercased() }) {
+                matched = [skill]
+                logger.info("Skill force-invoked: \(skill.name)")
+            }
+        }
+        
+        // Fall back to keyword matching
+        if matched.isEmpty {
+            matched = skills.filter { $0.matches(userMessage) }
+        }
+        
         guard !matched.isEmpty else {
             logger.debug("Skills: no match for '\(userMessage.prefix(60))' against \(skills.count) skills")
             lastTriggeredSkills = []
