@@ -25,7 +25,10 @@ final class MessageRouter: Sendable {
     }
     
     private let knownModels: [ModelProfile] = [
+        ModelProfile(pattern: "claude-opus-4-6",  smarts: 99, pricePerMInput: 15.0),
+        ModelProfile(pattern: "claude-opus-4-5",  smarts: 98, pricePerMInput: 15.0),
         ModelProfile(pattern: "claude-opus-4",    smarts: 98, pricePerMInput: 15.0),
+        ModelProfile(pattern: "claude-sonnet-4-5", smarts: 94, pricePerMInput: 3.0),
         ModelProfile(pattern: "claude-sonnet-4",  smarts: 92, pricePerMInput: 3.0),
         ModelProfile(pattern: "claude-haiku-4",   smarts: 78, pricePerMInput: 0.80),
         ModelProfile(pattern: "claude-3-5-sonnet", smarts: 88, pricePerMInput: 3.0),
@@ -47,7 +50,7 @@ final class MessageRouter: Sendable {
     ]
     
     func resolveModelTier(from models: [ChatModel]) -> ModelTier {
-        let candidates = models.filter { !$0.isAutoRouting && $0.id.hasPrefix("global.") }
+        let candidates = models.filter { !$0.isAutoRouting && ($0.id.hasPrefix("global.") || $0.id.hasPrefix("us.")) }
         let pool = candidates.isEmpty ? models.filter { !$0.isAutoRouting } : candidates
         
         guard !pool.isEmpty else { return ModelTier(simple: "", medium: "", complex: "") }
