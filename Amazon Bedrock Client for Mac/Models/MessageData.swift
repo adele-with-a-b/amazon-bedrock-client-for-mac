@@ -188,6 +188,7 @@ struct MessageData: Identifiable, Equatable, Codable {
         case toolResult = "tool_result"
         case videoUrl = "video_url"
         case videoS3Uri = "video_s3_uri"
+        case usageInfo = "usage_info"
     }
     
     static func == (lhs: MessageData, rhs: MessageData) -> Bool {

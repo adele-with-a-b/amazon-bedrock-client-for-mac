@@ -485,6 +485,7 @@ class ChatViewModel: ObservableObject {
         chatManager.setIsLoading(true, for: chatId)
         isMessageBarDisabled = true
         responseStartTime = Date()
+        logger.debug("sendMessageAsync: chatId=\(chatId), model=\(chatModel.id), isAuto=\(chatModel.isAutoRouting), input=\(userInput.prefix(100))")
         cumulativeCredits = 0.0
         
         let tempInput = userInput

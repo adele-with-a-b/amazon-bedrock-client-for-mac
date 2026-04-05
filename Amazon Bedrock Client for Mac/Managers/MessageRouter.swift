@@ -20,17 +20,21 @@ final class MessageRouter: Sendable {
     
     /// Resolve model tier from available models — capability-based, not name-based
     func resolveModelTier(from models: [ChatModel]) -> ModelTier {
-        // Rank models by capability tier
         let ranked = models
             .filter { !$0.isAutoRouting }
             .sorted { tierScore($0.id) > tierScore($1.id) }
         
-        let complex = ranked.first?.id ?? ""
-        let simple = ranked.last?.id ?? complex
-        let medium = ranked.count >= 3
-            ? ranked[ranked.count / 2].id
-            : (ranked.count >= 2 ? ranked[1].id : complex)
+        guard !ranked.isEmpty else {
+            return ModelTier(simple: "", medium: "", complex: "")
+        }
         
+        let complex = ranked.first!.id  // most capable
+        // Simple uses mid-tier — must still be competent enough to answer well
+        // Never go below the 2nd-best model for simple tasks
+        let medium = ranked.count >= 2 ? ranked[1].id : complex
+        let simple = medium  // simple = medium; cost savings come from not using Opus, not from using the worst model
+        
+        logger.info("Tier resolved: simple=\(simple), medium=\(medium), complex=\(complex) from \(ranked.count) models")
         return ModelTier(simple: simple, medium: medium, complex: complex)
     }
     
@@ -44,10 +48,11 @@ final class MessageRouter: Sendable {
         if id.contains("nova-pro") { return 75 }
         if id.contains("llama-3") && id.contains("70b") { return 70 }
         if id.contains("mistral-large") { return 70 }
+        if id.contains("qwen") { return 65 }
         // Mid tier
         if id.contains("nova-lite") { return 50 }
         if id.contains("llama-3") && id.contains("8b") { return 45 }
-        if id.contains("mistral") { return 40 }
+        if id.contains("mistral") && !id.contains("large") { return 40 }
         // Low tier (fast)
         if id.contains("haiku") { return 20 }
         if id.contains("nova-micro") { return 15 }
