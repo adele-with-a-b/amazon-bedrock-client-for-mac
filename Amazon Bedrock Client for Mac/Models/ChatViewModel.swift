@@ -973,8 +973,10 @@ class ChatViewModel: ObservableObject {
         let maxTurns = settingManager.maxToolUseTurns
         let turn_count = 0
         
-        // Get Bedrock messages in AWS SDK format
-        let bedrockMessages = try conversationHistory.map { try convertToBedrockMessage($0, modelId: routedModelId) }
+        // Get Bedrock messages in AWS SDK format, filtering out any with empty content
+        let bedrockMessages = try conversationHistory
+            .map { try convertToBedrockMessage($0, modelId: routedModelId) }
+            .filter { !($0.content ?? []).isEmpty }
         
         // Convert to system prompt format used by AWS SDK
         let systemContentBlock: [AWSBedrockRuntime.BedrockRuntimeClientTypes.SystemContentBlock]? =
