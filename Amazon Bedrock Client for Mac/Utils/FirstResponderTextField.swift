@@ -174,7 +174,8 @@ final class MyTextView: NSTextView {
                 }
                 // Any other file type from Finder: paste as path
                 else {
-                    pastedText += (pastedText.isEmpty ? "" : "\n") + url.path
+                    let text = url.isFileURL ? url.path : url.absoluteString
+                    pastedText += (pastedText.isEmpty ? "" : "\n") + text
                     fileProcessed = true
                 }
             }
