@@ -189,6 +189,7 @@ class ChatViewModel: ObservableObject {
     /// The model ID to use for the current request (may differ from chatModel.id when auto-routing)
     private var routedModelId: String { _routedModelId ?? chatModel.id }
     private var _routedModelId: String?
+    private var lastComplexity: MessageComplexity?
     @Published var isSending: Bool = false
     @Published var isStreamingEnabled: Bool = false
     @Published var selectedPlaceholder: String
@@ -520,14 +521,15 @@ class ChatViewModel: ObservableObject {
                 let tier = router.resolveModelTier(from: settingManager.availableModels)
                 let hasAttachments = !(userMessage.imageBase64Strings?.isEmpty ?? true)
                     || !(userMessage.documentBase64Strings?.isEmpty ?? true)
-                let result = await router.route(
+                let result = router.route(
                     message: userMessage.text,
                     conversationLength: messages.count,
                     hasAttachments: hasAttachments,
-                    backend: backendModel.backend,
+                    previousComplexity: lastComplexity,
                     tier: tier
                 )
                 _routedModelId = result.modelId
+                lastComplexity = result.complexity
                 logger.info("Auto-routed to \(result.modelId) (\(result.complexity.rawValue))")
             } else {
                 _routedModelId = nil
