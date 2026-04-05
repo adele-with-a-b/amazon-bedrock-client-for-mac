@@ -518,7 +518,7 @@ class ChatViewModel: ObservableObject {
                 let tier = router.resolveModelTier(from: routingCandidates)
                 let hasAttachments = !(userMessage.imageBase64Strings?.isEmpty ?? true)
                     || !(userMessage.documentBase64Strings?.isEmpty ?? true)
-                let result = router.route(
+                let result = await router.route(
                     message: userMessage.text,
                     conversationLength: messages.count,
                     hasAttachments: hasAttachments,
