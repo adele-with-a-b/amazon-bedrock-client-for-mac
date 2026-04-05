@@ -14,16 +14,21 @@ struct CustomLogHandler: LogHandler {
     var metadata: Logger.Metadata = [:]
     let label: String
     
-    /// Shared file handle for log output
-    private static let logFileHandle: FileHandle? = {
+    private static let writeQueue = DispatchQueue(label: "bedrock.log.writer")
+    
+    private static let logFilePath: String = {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let logDir = appSupport.appendingPathComponent("Amazon Bedrock")
         try? FileManager.default.createDirectory(at: logDir, withIntermediateDirectories: true)
-        let logPath = logDir.appendingPathComponent("bedrock.log").path
-        if !FileManager.default.fileExists(atPath: logPath) {
-            FileManager.default.createFile(atPath: logPath, contents: nil)
+        return logDir.appendingPathComponent("bedrock.log").path
+    }()
+    
+    private static let logFileHandle: FileHandle? = {
+        let path = logFilePath
+        if !FileManager.default.fileExists(atPath: path) {
+            FileManager.default.createFile(atPath: path, contents: nil)
         }
-        guard let fh = FileHandle(forWritingAtPath: logPath) else { return nil }
+        guard let fh = FileHandle(forWritingAtPath: path) else { return nil }
         fh.seekToEndOfFile()
         let marker = "\n\n=== Session started \(ISO8601DateFormatter().string(from: Date())) ===\n"
         fh.write(marker.data(using: .utf8)!)
@@ -35,40 +40,17 @@ struct CustomLogHandler: LogHandler {
         set { metadata[key] = newValue }
     }
     
-    // Updated to use the non-deprecated method signature with source parameter
     func log(level: Logger.Level, message: Logger.Message, metadata: Logger.Metadata?, source: String, file: String, function: String, line: UInt) {
-        // Generate timestamp in ISO8601 format
         let timestamp = ISO8601DateFormatter().string(from: Date())
-        
-        // Extract current filename
         let fileName = (file as NSString).lastPathComponent
+        let logMessage = "[\(timestamp)] [\(level)] [\(fileName):\(line)] \(message)\n"
         
-        // Merge additional metadata
-        var mergedMetadata = self.metadata
-        if let metadata = metadata {
-            for (key, value) in metadata {
-                mergedMetadata[key] = value
+        Self.writeQueue.async {
+            if let data = logMessage.data(using: .utf8), let fh = Self.logFileHandle {
+                fh.seekToEndOfFile()
+                fh.write(data)
             }
         }
-        
-        // Format final metadata string
-        let metadataString = mergedMetadata.isEmpty ? "" : " \(mergedMetadata)"
-        
-        // Standardized log message format with source included
-        let logMessage = "[\(timestamp)] [\(level)] [\(fileName):\(line)] \(message)\(metadataString)"
-        print(logMessage)
-        
-        // Write to log file
-        if let data = (logMessage + "\n").data(using: .utf8) {
-            Self.logFileHandle?.seekToEndOfFile()
-            Self.logFileHandle?.write(data)
-        }
-    }
-    
-    // For backward compatibility (can be removed later)
-    @available(*, deprecated, message: "Use the updated log method instead")
-    func log(level: Logger.Level, message: Logger.Message, metadata: Logger.Metadata?, file: String, function: String, line: UInt) {
-        log(level: level, message: message, metadata: metadata, source: "", file: file, function: function, line: line)
     }
 }
 
