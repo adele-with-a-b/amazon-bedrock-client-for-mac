@@ -516,7 +516,13 @@ class ChatViewModel: ObservableObject {
         
         do {
             // Auto-routing: resolve the best model for this message
-            if chatModel.isAutoRouting {
+            // Agent model pinning overrides everything
+            if let template = PromptTemplateManager.shared.selectedTemplate,
+               template.isAgent,
+               let pinned = template.pinnedModelId, !pinned.isEmpty {
+                _routedModelId = pinned
+                logger.info("Agent pinned to model: \(pinned)")
+            } else if chatModel.isAutoRouting {
                 let router = MessageRouter.shared
                 let tier = router.resolveModelTier(from: settingManager.availableModels)
                 let hasAttachments = !(userMessage.imageBase64Strings?.isEmpty ?? true)

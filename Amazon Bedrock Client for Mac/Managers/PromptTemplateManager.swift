@@ -18,13 +18,15 @@ struct SystemPromptTemplate: Identifiable, Codable, Hashable {
     var updatedAt: Date
     var isAgent: Bool
     var promptFile: String?  // file path for agent prompts
+    var pinnedModelId: String?  // agent-specified model override
     
-    init(id: UUID = UUID(), name: String, content: String, isAgent: Bool = false, promptFile: String? = nil) {
+    init(id: UUID = UUID(), name: String, content: String, isAgent: Bool = false, promptFile: String? = nil, pinnedModelId: String? = nil) {
         self.id = id
         self.name = name
         self.content = content
         self.isAgent = isAgent
         self.promptFile = promptFile
+        self.pinnedModelId = pinnedModelId
         self.createdAt = Date()
         self.updatedAt = Date()
     }
@@ -222,6 +224,7 @@ class PromptTemplateManager: ObservableObject {
         let description: String
         let prompt: String  // file:// URI or inline
         let resources: [String]?  // file:// and skill:// URIs
+        let model: String?  // optional model ID to pin agent to
     }
     
     struct SkillMetadata: Identifiable {
@@ -294,7 +297,8 @@ class PromptTemplateManager: ObservableObject {
                     name: config.name,
                     content: config.description,
                     isAgent: true,
-                    promptFile: promptFile
+                    promptFile: promptFile,
+                    pinnedModelId: config.model
                 )
                 
                 // Parse skill:// resources
