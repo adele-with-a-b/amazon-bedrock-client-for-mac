@@ -26,20 +26,22 @@ final class MessageRouter: Sendable {
     }
     
     private let knownModels: [ModelProfile] = [
-        // Claude family
-        ModelProfile(pattern: "opus-4",       smarts: 98, pricePerMInput: 15.0),
-        ModelProfile(pattern: "sonnet-4",     smarts: 90, pricePerMInput: 3.0),
-        ModelProfile(pattern: "haiku-4",      smarts: 75, pricePerMInput: 0.80),
-        ModelProfile(pattern: "opus",         smarts: 95, pricePerMInput: 15.0),
-        ModelProfile(pattern: "sonnet",       smarts: 85, pricePerMInput: 3.0),
-        ModelProfile(pattern: "haiku",        smarts: 70, pricePerMInput: 0.25),
+        // Claude family — specific patterns first
+        ModelProfile(pattern: "claude-opus-4",    smarts: 98, pricePerMInput: 15.0),
+        ModelProfile(pattern: "claude-sonnet-4",  smarts: 92, pricePerMInput: 3.0),
+        ModelProfile(pattern: "claude-haiku-4",   smarts: 78, pricePerMInput: 0.80),
+        ModelProfile(pattern: "claude-3-5-sonnet", smarts: 88, pricePerMInput: 3.0),
+        ModelProfile(pattern: "claude-3-5-haiku", smarts: 72, pricePerMInput: 0.80),
+        ModelProfile(pattern: "claude-3-opus",    smarts: 85, pricePerMInput: 15.0),
+        ModelProfile(pattern: "claude-3-sonnet",  smarts: 75, pricePerMInput: 3.0),
+        ModelProfile(pattern: "claude-3-haiku",   smarts: 65, pricePerMInput: 0.25),
         // Nova family
         ModelProfile(pattern: "nova-pro",     smarts: 70, pricePerMInput: 0.80),
         ModelProfile(pattern: "nova-lite",    smarts: 50, pricePerMInput: 0.06),
         ModelProfile(pattern: "nova-micro",   smarts: 30, pricePerMInput: 0.035),
         // Llama family
-        ModelProfile(pattern: "llama-3.*70b", smarts: 75, pricePerMInput: 2.65),
-        ModelProfile(pattern: "llama-3.*8b",  smarts: 50, pricePerMInput: 0.22),
+        ModelProfile(pattern: "llama.*70b",   smarts: 75, pricePerMInput: 2.65),
+        ModelProfile(pattern: "llama.*8b",    smarts: 50, pricePerMInput: 0.22),
         ModelProfile(pattern: "llama",        smarts: 55, pricePerMInput: 0.50),
         // Mistral family
         ModelProfile(pattern: "mistral-large", smarts: 75, pricePerMInput: 4.0),
@@ -63,9 +65,14 @@ final class MessageRouter: Sendable {
     }
     
     func resolveModelTier(from models: [ChatModel]) -> ModelTier {
-        let scored = models
-            .filter { !$0.isAutoRouting }
-            .map { (id: $0.id, score: compositeScore(for: $0.id)) }
+        // Only route to inference profiles (global.*) — these are actually enabled
+        // Fall back to all models if no inference profiles exist
+        let candidates = models.filter { !$0.isAutoRouting }
+        let routable = candidates.filter { $0.id.hasPrefix("global.") || $0.id.hasPrefix("us.") }
+        let pool = routable.isEmpty ? candidates : routable
+        
+        let scored = pool
+            .map { (id: $0.id, score: compositeScore(for: $0.id), smarts: smartsScore($0.id)) }
             .sorted { $0.score > $1.score }
         
         guard !scored.isEmpty else {
@@ -73,16 +80,14 @@ final class MessageRouter: Sendable {
         }
         
         // Complex: highest smarts regardless of price
-        let bySmarts = models
-            .filter { !$0.isAutoRouting }
-            .sorted { smartsScore($0.id) > smartsScore($1.id) }
+        let bySmarts = scored.sorted { $0.smarts > $1.smarts }
         let complex = bySmarts.first!.id
         
         // Medium: best composite score (smart + affordable)
         let medium = scored.first!.id
         
         // Simple: best composite among models with smarts >= 60 (must be competent)
-        let competent = scored.filter { smartsScore($0.id) >= 60 }
+        let competent = scored.filter { $0.smarts >= 60 }
         let simple = competent.last?.id ?? medium  // cheapest competent model
         
         logger.info("Tier resolved: simple=\(simple), medium=\(medium), complex=\(complex) (from \(scored.count) models)")
