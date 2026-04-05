@@ -86,9 +86,11 @@ final class MessageRouter: Sendable {
         // Medium: best composite score (smart + affordable)
         let medium = scored.first!.id
         
-        // Simple: best composite among models with smarts >= 60 (must be competent)
-        let competent = scored.filter { $0.smarts >= 60 }
-        let simple = competent.last?.id ?? medium  // cheapest competent model
+        // Simple: cheapest model that's still competent (smarts >= 60), sorted by price
+        let competent = pool
+            .filter { smartsScore($0.id) >= 60 }
+            .sorted { priceScore($0.id) < priceScore($1.id) }  // cheapest first
+        let simple = competent.first?.id ?? medium
         
         logger.info("Tier resolved: simple=\(simple), medium=\(medium), complex=\(complex) (from \(scored.count) models)")
         return ModelTier(simple: simple, medium: medium, complex: complex)
@@ -98,6 +100,12 @@ final class MessageRouter: Sendable {
         let id = modelId.lowercased()
         let profile = knownModels.first { id.contains($0.pattern) || id.range(of: $0.pattern, options: .regularExpression) != nil }
         return profile?.smarts ?? 50
+    }
+    
+    private func priceScore(_ modelId: String) -> Double {
+        let id = modelId.lowercased()
+        let profile = knownModels.first { id.contains($0.pattern) || id.range(of: $0.pattern, options: .regularExpression) != nil }
+        return profile?.pricePerMInput ?? 1.0
     }
     
     /// Pure heuristic routing with conversation context

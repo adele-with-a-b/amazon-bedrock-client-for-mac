@@ -41,8 +41,13 @@ struct CustomLogHandler: LogHandler {
     }
     
     func log(level: Logger.Level, message: Logger.Message, metadata: Logger.Metadata?, source: String, file: String, function: String, line: UInt) {
-        let timestamp = ISO8601DateFormatter().string(from: Date())
+        // Filter out noisy AWS SDK debug logs
         let fileName = (file as NSString).lastPathComponent
+        if level == .debug && (fileName.contains("URLSession") || fileName.contains("MessageDecoder") || fileName.contains("Middleware")) {
+            return
+        }
+        
+        let timestamp = ISO8601DateFormatter().string(from: Date())
         let logMessage = "[\(timestamp)] [\(level)] [\(fileName):\(line)] \(message)\n"
         
         Self.writeQueue.async {
