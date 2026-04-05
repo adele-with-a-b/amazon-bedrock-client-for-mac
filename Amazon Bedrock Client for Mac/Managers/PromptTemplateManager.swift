@@ -241,12 +241,18 @@ class PromptTemplateManager: ObservableObject {
         /// Check if user message matches this skill's triggers
         func matches(_ userMessage: String) -> Bool {
             let lower = userMessage.lowercased()
-            // Match against keywords in the description
+            let stopWords: Set<String> = ["when", "this", "that", "with", "from", "have", "been",
+                                          "will", "would", "could", "should", "also", "about",
+                                          "their", "them", "they", "your", "more", "some", "other",
+                                          "into", "over", "such", "than", "only", "very", "just",
+                                          "like", "make", "made", "does", "doing", "each", "help",
+                                          "work", "working", "using", "used", "asked", "want"]
             let keywords = description.lowercased()
                 .components(separatedBy: CharacterSet.alphanumerics.inverted)
-                .filter { $0.count > 3 }
-            // Need at least 2 keyword hits to trigger
-            let hits = keywords.filter { lower.contains($0) }.count
+                .filter { $0.count > 3 && !stopWords.contains($0) }
+            let uniqueKeywords = Set(keywords)
+            let hits = uniqueKeywords.filter { lower.contains($0) }.count
+            // Need at least 2 meaningful keyword hits
             return hits >= 2
         }
     }
@@ -328,13 +334,26 @@ class PromptTemplateManager: ObservableObject {
     
     var agentsDirectory: URL { agentsDir }
     
+    /// Names of skills triggered on the last message (for UI display)
+    @Published var lastTriggeredSkills: [String] = []
+    
     /// Get skills that match a user message for the currently selected agent
     func matchedSkillContent(for userMessage: String) -> String? {
         guard let id = selectedTemplateId,
-              let skills = agentSkills[id] else { return nil }
+              let skills = agentSkills[id] else {
+            lastTriggeredSkills = []
+            return nil
+        }
         
         let matched = skills.filter { $0.matches(userMessage) }
-        guard !matched.isEmpty else { return nil }
+        guard !matched.isEmpty else {
+            logger.debug("Skills: no match for '\(userMessage.prefix(60))' against \(skills.count) skills")
+            lastTriggeredSkills = []
+            return nil
+        }
+        
+        lastTriggeredSkills = matched.map { $0.name }
+        logger.info("Skills triggered: \(lastTriggeredSkills.joined(separator: ", ")) for '\(userMessage.prefix(60))'")
         
         let contents = matched.compactMap { skill -> String? in
             guard let content = skill.content else { return nil }

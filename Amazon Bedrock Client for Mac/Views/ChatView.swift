@@ -209,11 +209,25 @@ struct ChatView: View {
                 Text(template.name)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.secondary)
+                
+                if !templateManager.lastTriggeredSkills.isEmpty {
+                    Divider().frame(height: 12)
+                    ForEach(templateManager.lastTriggeredSkills, id: \.self) { skill in
+                        HStack(spacing: 3) {
+                            Image(systemName: "bolt.fill")
+                                .font(.system(size: 9))
+                            Text(skill)
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .foregroundStyle(.orange)
+                    }
+                }
             }
             .padding(.vertical, 4)
             .padding(.horizontal, 12)
             .frame(maxWidth: .infinity)
             .background(.ultraThinMaterial)
+            .animation(.easeInOut(duration: 0.3), value: templateManager.lastTriggeredSkills)
         }
     }
     
