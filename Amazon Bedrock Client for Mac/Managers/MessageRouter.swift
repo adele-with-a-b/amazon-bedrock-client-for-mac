@@ -33,9 +33,8 @@ final class MessageRouter: Sendable {
         ModelProfile(pattern: "claude-haiku-4",   smarts: 78, pricePerMInput: 0.80),
         ModelProfile(pattern: "claude-3-5-sonnet", smarts: 88, pricePerMInput: 3.0),
         ModelProfile(pattern: "claude-3-5-haiku", smarts: 72, pricePerMInput: 0.80),
-        ModelProfile(pattern: "claude-3-opus",    smarts: 85, pricePerMInput: 15.0),
-        ModelProfile(pattern: "claude-3-sonnet",  smarts: 75, pricePerMInput: 3.0),
-        ModelProfile(pattern: "claude-3-haiku",   smarts: 65, pricePerMInput: 0.25),
+        // Exclude old Claude 3 models from routing — they're outclassed at the same price tier
+        // claude-3-opus, claude-3-sonnet, claude-3-haiku intentionally omitted
         ModelProfile(pattern: "nova-pro",     smarts: 70, pricePerMInput: 0.80),
         ModelProfile(pattern: "nova-lite",    smarts: 50, pricePerMInput: 0.06),
         ModelProfile(pattern: "nova-micro",   smarts: 30, pricePerMInput: 0.035),
@@ -93,12 +92,13 @@ final class MessageRouter: Sendable {
         
         // Try RouteLLM sidecar
         if let score = await queryRouteLLM(prompt: message) {
-            // score > 0.5 = strong model needed, < 0.5 = weak model fine
-            // Map to 3 tiers: <0.44 simple, 0.44-0.47 medium, >0.47 complex
+            // BERT scores cluster 0.45-0.55 for most inputs
+            // Widen bands: only truly high scores get complex
+            // <0.48 simple, 0.48-0.52 medium, >0.52 complex
             let complexity: MessageComplexity
-            if score < 0.44 {
+            if score < 0.48 {
                 complexity = .simple
-            } else if score < 0.47 {
+            } else if score < 0.52 {
                 complexity = .medium
             } else {
                 complexity = .complex
