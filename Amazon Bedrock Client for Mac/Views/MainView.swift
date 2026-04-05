@@ -57,6 +57,13 @@ struct MainView: View {
                     createNewChatIfNeeded()
                 }
                 menuSelection = .chat(chat)
+                // Restore agent if one was saved with this chat
+                if let agentId = chat.agentId,
+                   let uuid = UUID(uuidString: agentId) {
+                    PromptTemplateManager.shared.selectedTemplateId = uuid
+                } else {
+                    PromptTemplateManager.shared.selectedTemplateId = nil
+                }
             }
         }
         .onChange(of: organizedChatModels) { oldValue, newValue in
@@ -408,15 +415,17 @@ struct MainView: View {
                     chatManager.chats[index] = updatedChat
                 }
             }
-            // If model changed and chat has messages, create new chat with the selected model
+            // If model changed and chat has messages, switch model in-place
             else if currentChat.id != selectedModel.id {
-                chatManager.createNewChat(
-                    modelId: selectedModel.id,
-                    modelName: selectedModel.name,
-                    modelProvider: selectedModel.provider
-                ) { newChat in
-                    newChat.lastMessageDate = Date()
-                    self.selection = .chat(newChat)
+                let updatedChat = currentChat
+                updatedChat.description = selectedModel.id
+                updatedChat.id = selectedModel.id
+                updatedChat.name = selectedModel.name
+                
+                selection = .chat(updatedChat)
+                
+                if let index = chatManager.chats.firstIndex(where: { $0.chatId == currentChat.chatId }) {
+                    chatManager.chats[index] = updatedChat
                 }
             }
         } else {

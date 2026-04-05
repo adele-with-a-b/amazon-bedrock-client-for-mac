@@ -241,7 +241,8 @@ class ChatManager: ObservableObject {
             title: "New Chat",
             description: modelId,
             provider: modelProvider,
-            lastMessageDate: Date()
+            lastMessageDate: Date(),
+            agentId: PromptTemplateManager.shared.selectedTemplate?.isAgent == true ? PromptTemplateManager.shared.selectedTemplateId?.uuidString : nil
         )
         
         let chatId = chatModel.chatId
@@ -274,6 +275,7 @@ class ChatManager: ObservableObject {
                 newChat.provider = chatModel.provider
                 newChat.lastMessageDate = chatModel.lastMessageDate
                 newChat.isManuallyRenamed = chatModel.isManuallyRenamed
+                newChat.agentId = chatModel.agentId
                 
                 do {
                     try context.save()
@@ -408,6 +410,7 @@ class ChatManager: ObservableObject {
                 newChat.provider = chatModel.provider
                 newChat.lastMessageDate = chatModel.lastMessageDate
                 newChat.isManuallyRenamed = chatModel.isManuallyRenamed
+                newChat.agentId = chatModel.agentId
                 
                 do {
                     try context.save()
@@ -886,7 +889,8 @@ class ChatManager: ObservableObject {
                         description: entity.chatDescription ?? "",
                         provider: entity.provider ?? "",
                         lastMessageDate: entity.lastMessageDate ?? Date(),
-                        isManuallyRenamed: entity.isManuallyRenamed
+                        isManuallyRenamed: entity.isManuallyRenamed,
+                        agentId: entity.agentId
                     ))
                 }
                 self.chats = ordered
