@@ -512,7 +512,18 @@ class ChatViewModel: ObservableObject {
                 logger.info("Agent pinned to model: \(pinned)")
             } else if chatModel.isAutoRouting {
                 let router = MessageRouter.shared
-                let tier = router.resolveModelTier(from: settingManager.availableModels)
+                // If MCP tools are active, only route to models that support streaming tool use
+                let mcpActive = mcpManager.mcpEnabled && !mcpManager.toolInfos.isEmpty
+                let routingCandidates: [ChatModel]
+                if mcpActive {
+                    routingCandidates = settingManager.availableModels.filter {
+                        backendModel.backend.isStreamingToolUseSupported($0.id)
+                    }
+                    logger.debug("MCP active: filtered to \(routingCandidates.count) tool-capable models")
+                } else {
+                    routingCandidates = settingManager.availableModels
+                }
+                let tier = router.resolveModelTier(from: routingCandidates)
                 let hasAttachments = !(userMessage.imageBase64Strings?.isEmpty ?? true)
                     || !(userMessage.documentBase64Strings?.isEmpty ?? true)
                 let result = router.route(
