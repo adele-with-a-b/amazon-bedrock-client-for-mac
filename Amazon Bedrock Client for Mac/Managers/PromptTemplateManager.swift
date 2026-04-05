@@ -74,6 +74,9 @@ class PromptTemplateManager: ObservableObject {
     
     @Published var agents: [SystemPromptTemplate] = []
     
+    /// Skills keyed by agent template ID
+    private(set) var agentSkills: [UUID: [SkillMetadata]] = [:]
+    
     @Published var selectedTemplateId: UUID? {
         didSet {
             if let id = selectedTemplateId,
@@ -218,6 +221,55 @@ class PromptTemplateManager: ObservableObject {
         let name: String
         let description: String
         let prompt: String  // file:// URI or inline
+        let resources: [String]?  // file:// and skill:// URIs
+    }
+    
+    struct SkillMetadata: Identifiable {
+        let id = UUID()
+        let name: String
+        let description: String
+        let filePath: String
+        
+        /// Load full skill content on demand
+        var content: String? {
+            try? String(contentsOfFile: filePath, encoding: .utf8)
+        }
+        
+        /// Check if user message matches this skill's triggers
+        func matches(_ userMessage: String) -> Bool {
+            let lower = userMessage.lowercased()
+            // Match against keywords in the description
+            let keywords = description.lowercased()
+                .components(separatedBy: CharacterSet.alphanumerics.inverted)
+                .filter { $0.count > 3 }
+            // Need at least 2 keyword hits to trigger
+            let hits = keywords.filter { lower.contains($0) }.count
+            return hits >= 2
+        }
+    }
+    
+    /// Parse YAML frontmatter from a skill .md file
+    private static func parseSkillFrontmatter(at path: String) -> SkillMetadata? {
+        guard let content = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
+        // Frontmatter is between first --- and second ---
+        let lines = content.components(separatedBy: "\n")
+        guard lines.first?.trimmingCharacters(in: .whitespaces) == "---" else { return nil }
+        
+        var name: String?
+        var description: String?
+        
+        for line in lines.dropFirst() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed == "---" { break }
+            if trimmed.hasPrefix("name:") {
+                name = trimmed.dropFirst(5).trimmingCharacters(in: .whitespaces)
+            } else if trimmed.hasPrefix("description:") {
+                description = trimmed.dropFirst(12).trimmingCharacters(in: .whitespaces)
+            }
+        }
+        
+        guard let n = name, let d = description else { return nil }
+        return SkillMetadata(name: n, description: d, filePath: path)
     }
     
     func loadAgents() {
@@ -238,12 +290,27 @@ class PromptTemplateManager: ObservableObject {
                     promptFile = nil
                 }
                 
-                return SystemPromptTemplate(
+                let template = SystemPromptTemplate(
                     name: config.name,
                     content: config.description,
                     isAgent: true,
                     promptFile: promptFile
                 )
+                
+                // Parse skill:// resources
+                let skills = (config.resources ?? [])
+                    .filter { $0.hasPrefix("skill://") }
+                    .compactMap { uri -> SkillMetadata? in
+                        let path = String(uri.dropFirst(8))  // drop "skill://"
+                        return Self.parseSkillFrontmatter(at: path)
+                    }
+                
+                if !skills.isEmpty {
+                    agentSkills[template.id] = skills
+                    logger.info("Agent '\(config.name)': loaded \(skills.count) skills")
+                }
+                
+                return template
             }
             .sorted { $0.name < $1.name }
         
@@ -256,6 +323,22 @@ class PromptTemplateManager: ObservableObject {
     }
     
     var agentsDirectory: URL { agentsDir }
+    
+    /// Get skills that match a user message for the currently selected agent
+    func matchedSkillContent(for userMessage: String) -> String? {
+        guard let id = selectedTemplateId,
+              let skills = agentSkills[id] else { return nil }
+        
+        let matched = skills.filter { $0.matches(userMessage) }
+        guard !matched.isEmpty else { return nil }
+        
+        let contents = matched.compactMap { skill -> String? in
+            guard let content = skill.content else { return nil }
+            return "# Skill: \(skill.name)\n\n\(content)"
+        }
+        
+        return contents.isEmpty ? nil : "\n\n---\n\n" + contents.joined(separator: "\n\n---\n\n")
+    }
     
     // MARK: - Import Examples
     

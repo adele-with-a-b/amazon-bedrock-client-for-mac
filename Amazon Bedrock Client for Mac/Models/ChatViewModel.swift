@@ -941,7 +941,11 @@ class ChatViewModel: ObservableObject {
         let conversationHistory = await getConversationHistory()
         
         // Get system prompt
-        let systemPrompt = settingManager.systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Get system prompt, with matched skills appended for agents
+        var systemPrompt = settingManager.systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let skillContent = PromptTemplateManager.shared.matchedSkillContent(for: userInput) {
+            systemPrompt += skillContent
+        }
         
         // Get tool configurations if MCP is enabled
         var toolConfig: AWSBedrockRuntime.BedrockRuntimeClientTypes.ToolConfiguration? = nil
@@ -2911,7 +2915,11 @@ class ChatViewModel: ObservableObject {
         let conversationHistory = await getConversationHistory()
         
         // Get system prompt
-        let systemPrompt = settingManager.systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Get system prompt, with matched skills appended for agents
+        var systemPrompt = settingManager.systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let skillContent = PromptTemplateManager.shared.matchedSkillContent(for: userInput) {
+            systemPrompt += skillContent
+        }
         
         // Get tool configurations if MCP is enabled (but disable for non-streaming for now)
         let toolConfig: AWSBedrockRuntime.BedrockRuntimeClientTypes.ToolConfiguration? = nil
