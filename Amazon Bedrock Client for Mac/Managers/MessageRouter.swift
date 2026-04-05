@@ -65,11 +65,9 @@ final class MessageRouter: Sendable {
     }
     
     func resolveModelTier(from models: [ChatModel]) -> ModelTier {
-        // Only route to inference profiles (global.*) — these are actually enabled
-        // Fall back to all models if no inference profiles exist
-        let candidates = models.filter { !$0.isAutoRouting }
-        let routable = candidates.filter { $0.id.hasPrefix("global.") || $0.id.hasPrefix("us.") }
-        let pool = routable.isEmpty ? candidates : routable
+        // Only route to inference profiles (global.*) — these are provisioned and current
+        let candidates = models.filter { !$0.isAutoRouting && $0.id.hasPrefix("global.") }
+        let pool = candidates.isEmpty ? models.filter { !$0.isAutoRouting } : candidates
         
         let scored = pool
             .map { (id: $0.id, score: compositeScore(for: $0.id), smarts: smartsScore($0.id)) }
