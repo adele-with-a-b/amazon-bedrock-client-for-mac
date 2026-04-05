@@ -246,13 +246,13 @@ class PromptTemplateManager: ObservableObject {
                                           "their", "them", "they", "your", "more", "some", "other",
                                           "into", "over", "such", "than", "only", "very", "just",
                                           "like", "make", "made", "does", "doing", "each", "help",
-                                          "work", "working", "using", "used", "asked", "want"]
+                                          "work", "working", "using", "used", "asked", "want",
+                                          "file", "files", "need", "want", "know", "what", "how"]
             let keywords = description.lowercased()
                 .components(separatedBy: CharacterSet.alphanumerics.inverted)
-                .filter { $0.count > 3 && !stopWords.contains($0) }
+                .filter { $0.count > 2 && !stopWords.contains($0) }
             let uniqueKeywords = Set(keywords)
             let hits = uniqueKeywords.filter { lower.contains($0) }.count
-            // Need at least 2 meaningful keyword hits
             return hits >= 2
         }
     }
