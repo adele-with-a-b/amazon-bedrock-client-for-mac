@@ -527,7 +527,18 @@ class ChatViewModel: ObservableObject {
                 )
                 _routedModelId = result.modelId
                 lastComplexity = result.complexity
-                logger.info("Auto-routed to \(result.modelId) (\(result.complexity.rawValue))")
+                
+                // Tool-aware escalation: if MCP tools are active, don't use simple tier
+                // Models need to be smart enough to handle tool schemas and multi-step tool use
+                let hasConnectedServer = mcpManager.connectionStatus.values.contains(.connected)
+                if mcpManager.mcpEnabled && !mcpManager.toolInfos.isEmpty && hasConnectedServer
+                    && result.complexity == .simple {
+                    _routedModelId = tier.medium
+                    lastComplexity = .medium
+                    logger.info("Escalated from simple to medium (tools active)")
+                }
+                
+                logger.info("Auto-routed to \(routedModelId) (\(lastComplexity?.rawValue ?? "?"))")
             } else {
                 _routedModelId = nil
             }
