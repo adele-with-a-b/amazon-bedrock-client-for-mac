@@ -974,15 +974,21 @@ class ChatViewModel: ObservableObject {
         let turn_count = 0
         
         // Get Bedrock messages in AWS SDK format, filtering out any with empty content
-        let bedrockMessages = try conversationHistory
+        var bedrockMessages = try conversationHistory
             .map { try convertToBedrockMessage($0, modelId: routedModelId) }
             .filter { !($0.content ?? []).isEmpty }
+        
+        // Compact old tool cycles to reduce token usage
+        bedrockMessages = compactToolCycles(bedrockMessages)
+        
+        // Apply sliding window if conversation is long
+        bedrockMessages = await applySlidingWindow(bedrockMessages)
+        
+        logger.info("Sending \(bedrockMessages.count) messages (from \(conversationHistory.count) in history)")
         
         // Convert to system prompt format used by AWS SDK
         let systemContentBlock: [AWSBedrockRuntime.BedrockRuntimeClientTypes.SystemContentBlock]? =
         systemPrompt.isEmpty ? nil : [.text(systemPrompt)]
-        
-        logger.info("Starting converseStream request with model ID: \(routedModelId)")
         
         // Start the tool cycling process
         try await processToolCycles(bedrockMessages: bedrockMessages, systemContentBlock: systemContentBlock, toolConfig: toolConfig, turnCount: turn_count, maxTurns: maxTurns)
@@ -1753,6 +1759,154 @@ class ChatViewModel: ObservableObject {
         
         logger.info("[SaveHistory] Saved \(newConversationHistory.messages.count) messages.")
         chatManager.saveConversationHistory(newConversationHistory, for: chatId)
+    }
+    
+    // MARK: - Context Compaction
+    
+    /// Compacts completed tool cycles in AWS SDK messages.
+    /// Truncates verbose tool_result outputs. Strips old thinking blocks.
+    /// Only compacts messages that are NOT in the last `preserveRecent` messages.
+    private func compactToolCycles(_ messages: [AWSBedrockRuntime.BedrockRuntimeClientTypes.Message], preserveRecent: Int = 4) -> [AWSBedrockRuntime.BedrockRuntimeClientTypes.Message] {
+        let compactBoundary = max(0, messages.count - preserveRecent)
+        
+        return messages.enumerated().map { (index, message) in
+            guard index < compactBoundary else { return message }
+            guard let content = message.content, !content.isEmpty else { return message }
+            
+            // Check if this message has any compactable content
+            let hasToolOrThinking = content.contains { block in
+                switch block {
+                case .tooluse, .toolresult, .reasoningcontent: return true
+                default: return false
+                }
+            }
+            guard hasToolOrThinking else { return message }
+            
+            let compactedContent: [AWSBedrockRuntime.BedrockRuntimeClientTypes.ContentBlock] = content.compactMap { block in
+                switch block {
+                case .toolresult(let toolResult):
+                    let compactResultContent = (toolResult.content ?? []).map { resultBlock -> AWSBedrockRuntime.BedrockRuntimeClientTypes.ToolResultContentBlock in
+                        if case .text(let text) = resultBlock, text.count > 300 {
+                            let prefix = String(text.prefix(200))
+                            let suffix = String(text.suffix(80))
+                            return .text("\(prefix)\n...[truncated \(text.count) chars]...\n\(suffix)")
+                        }
+                        return resultBlock
+                    }
+                    return .toolresult(.init(content: compactResultContent, status: toolResult.status, toolUseId: toolResult.toolUseId))
+                    
+                case .reasoningcontent:
+                    return .text("[reasoning omitted]")
+                    
+                default:
+                    return block
+                }
+            }
+            
+            return .init(content: compactedContent, role: message.role)
+        }
+    }
+    
+    // MARK: - Sliding Window with Summary
+    
+    /// Message count threshold before applying sliding window
+    private static let slidingWindowThreshold = 60
+    /// Number of recent messages to keep verbatim
+    private static let recentWindowSize = 30
+    
+    /// Applies sliding window: summarizes old messages, keeps recent ones verbatim.
+    /// Uses Haiku for fast/cheap summarization.
+    private func applySlidingWindow(_ messages: [AWSBedrockRuntime.BedrockRuntimeClientTypes.Message]) async -> [AWSBedrockRuntime.BedrockRuntimeClientTypes.Message] {
+        guard messages.count > Self.slidingWindowThreshold else { return messages }
+        
+        let splitPoint = messages.count - Self.recentWindowSize
+        let oldMessages = Array(messages.prefix(splitPoint))
+        let recentMessages = Array(messages.suffix(Self.recentWindowSize))
+        
+        logger.info("Sliding window: summarizing \(oldMessages.count) old messages, keeping \(recentMessages.count) recent")
+        
+        // Build text representation of old messages for summarization
+        let oldText = oldMessages.compactMap { msg -> String? in
+            guard let content = msg.content else { return nil }
+            let role = msg.role == .user ? "User" : "Assistant"
+            let texts = content.compactMap { block -> String? in
+                switch block {
+                case .text(let t): return t.count > 500 ? String(t.prefix(500)) + "..." : t
+                case .tooluse(let tu): return "[Tool: \(tu.name ?? "?")]"
+                case .toolresult(let tr):
+                    let resultText = tr.content?.compactMap { b -> String? in
+                        if case .text(let t) = b { return String(t.prefix(100)) }
+                        return nil
+                    }.joined(separator: " ") ?? ""
+                    return "[Result: \(resultText)]"
+                default: return nil
+                }
+            }
+            guard !texts.isEmpty else { return nil }
+            return "\(role): \(texts.joined(separator: " "))"
+        }.joined(separator: "\n")
+        
+        // Summarize with Haiku
+        let summary = await generateSummary(oldText)
+        
+        // Build windowed history: summary + ack + recent messages
+        // Ensure alternation: ack is assistant, so first recent message must be user
+        var trimmedRecent = recentMessages
+        if let first = trimmedRecent.first, first.role == .assistant {
+            // Drop the leading assistant message to maintain alternation
+            trimmedRecent = Array(trimmedRecent.dropFirst())
+        }
+        
+        let summaryMessage = AWSBedrockRuntime.BedrockRuntimeClientTypes.Message(
+            content: [.text("[Conversation summary of \(splitPoint) earlier messages]\n\(summary)\n[End of summary — recent messages follow]")],
+            role: .user
+        )
+        let ackMessage = AWSBedrockRuntime.BedrockRuntimeClientTypes.Message(
+            content: [.text("Understood. I have the conversation context from the summary above.")],
+            role: .assistant
+        )
+        
+        return [summaryMessage, ackMessage] + trimmedRecent
+    }
+    
+    /// Generates a summary of conversation text using Haiku
+    private func generateSummary(_ text: String) async -> String {
+        let haikuModelId = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+        
+        // Truncate input if extremely long
+        let truncatedText = text.count > 50_000 ? String(text.prefix(50_000)) + "\n...[truncated]" : text
+        
+        let prompt = "Summarize this conversation concisely. Preserve: key decisions, file names/paths, code changes, tool outputs, and any unresolved issues. Be factual and specific. Output only the summary."
+        
+        let summaryMessages: [AWSBedrockRuntime.BedrockRuntimeClientTypes.Message] = [
+            .init(content: [.text(truncatedText)], role: .user)
+        ]
+        
+        do {
+            let backend = await MainActor.run { backendModel.backend }
+            let request = AWSBedrockRuntime.ConverseInput(
+                inferenceConfig: .init(maxTokens: 2048),
+                messages: summaryMessages,
+                modelId: haikuModelId,
+                system: [.text(prompt)]
+            )
+            
+            let response = try await backend.bedrockRuntimeClient.converse(input: request)
+            
+            if case .message(let msg) = response.output {
+                for block in msg.content ?? [] {
+                    if case .text(let t) = block { return t }
+                }
+            }
+        } catch {
+            logger.error("Summary generation failed: \(error). Falling back to truncation.")
+        }
+        
+        // Fallback: excerpt-based summary
+        let lines = text.components(separatedBy: "\n")
+        let head = lines.prefix(20).joined(separator: "\n")
+        let tail = lines.suffix(10).joined(separator: "\n")
+        return "Earlier conversation (summarization failed, showing excerpts):\n\(head)\n...\n\(tail)"
     }
     
     /// Converts a ConversationHistory to Bedrock messages
