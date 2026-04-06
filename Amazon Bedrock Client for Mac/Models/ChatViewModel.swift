@@ -191,6 +191,10 @@ class ChatViewModel: ObservableObject {
     private var _routedModelId: String?
     private var lastComplexity: MessageComplexity?
     @Published var isSending: Bool = false
+    
+    /// Message queue: if user sends while processing, queue it instead of cancelling
+    private var pendingMessages: [String] = []
+    private var isProcessingMessage = false
     @Published var isStreamingEnabled: Bool = false
     @Published var selectedPlaceholder: String
     @Published var emptyText: String = ""
@@ -409,20 +413,41 @@ class ChatViewModel: ObservableObject {
         // Allow sending if there's text, images, or documents
         guard !userInput.isEmpty || !sharedMediaDataSource.images.isEmpty || !sharedMediaDataSource.documents.isEmpty else { return }
         
-        messageTask?.cancel()
-        messageTask = Task { await sendMessageAsync() }
+        enqueueMessage(userInput)
     }
     
     func sendMessage(_ message: String) {
         guard !message.isEmpty else { return }
-        
-        // Set the message and send it
         userInput = message
-        messageTask?.cancel()
+        enqueueMessage(message)
+    }
+    
+    /// Queue a message. If idle, process immediately. If busy, queue for later.
+    private func enqueueMessage(_ message: String) {
+        if isProcessingMessage {
+            // Don't cancel — queue the message for after current completes
+            pendingMessages.append(message)
+            logger.info("Message queued (queue depth: \(pendingMessages.count))")
+            return
+        }
+        messageTask = Task { await sendMessageAsync() }
+    }
+    
+    /// Called when sendMessageAsync finishes. Processes next queued message if any.
+    private func processNextQueuedMessage() {
+        guard !pendingMessages.isEmpty else {
+            isProcessingMessage = false
+            return
+        }
+        let next = pendingMessages.removeFirst()
+        logger.info("Processing queued message (remaining: \(pendingMessages.count))")
+        userInput = next
         messageTask = Task { await sendMessageAsync() }
     }
     
     func cancelSending() {
+        pendingMessages.removeAll()
+        isProcessingMessage = false
         messageTask?.cancel()
         chatManager.setIsLoading(false, for: chatId)
     }
@@ -482,6 +507,7 @@ class ChatViewModel: ObservableObject {
     // MARK: - Private Message Handling Methods
     
     private func sendMessageAsync() async {
+        isProcessingMessage = true
         chatManager.setIsLoading(true, for: chatId)
         isMessageBarDisabled = true
         responseStartTime = Date()
@@ -601,6 +627,9 @@ class ChatViewModel: ObservableObject {
         usageHandler?(usage)
         
         chatManager.setIsLoading(false, for: chatId)
+        
+        // Process next queued message if any
+        processNextQueuedMessage()
     }
     
     private func createUserMessage() -> MessageData {
