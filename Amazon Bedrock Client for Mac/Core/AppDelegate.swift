@@ -55,6 +55,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Disable automatic window tabbing
         NSWindow.allowsAutomaticWindowTabbing = false
         
+        // Start RouteLLM sidecar (binds to 127.0.0.1 only)
+        RouteLLMManager.shared.start()
+        
         // Initialize hotkey manager for quick access
         Task { @MainActor in
             self.hotkeyManager = HotkeyManager.shared
@@ -111,6 +114,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     func applicationWillTerminate(_ notification: Notification) {
         logger.info("Application will terminate")
+        
+        // Stop RouteLLM sidecar
+        RouteLLMManager.shared.stop()
         
         // Clean up temporary chats before terminating
         Task { @MainActor in
