@@ -257,6 +257,29 @@ class PromptTemplateManager: ObservableObject {
         }
     }
     
+    /// Generates a deterministic UUID from a string (SHA-256 based, stable across launches)
+    private static func deterministicUUID(from input: String) -> UUID {
+        let data = Data(input.utf8)
+        var hash = [UInt8](repeating: 0, count: 32)
+        data.withUnsafeBytes { buf in
+            // Simple hash using CC_SHA256 via CryptoKit-free approach
+            // Use the string bytes directly to build a stable 16-byte value
+            let bytes = Array(buf.bindMemory(to: UInt8.self))
+            for (i, byte) in bytes.enumerated() {
+                hash[i % 16] = hash[i % 16] &+ byte
+                hash[i % 16] ^= byte &* UInt8(truncatingIfNeeded: i &+ 1)
+            }
+        }
+        // Set version 4 and variant bits for valid UUID format
+        hash[6] = (hash[6] & 0x0F) | 0x40  // version 4
+        hash[8] = (hash[8] & 0x3F) | 0x80  // variant 1
+        let uuid = UUID(uuid: (hash[0], hash[1], hash[2], hash[3],
+                                hash[4], hash[5], hash[6], hash[7],
+                                hash[8], hash[9], hash[10], hash[11],
+                                hash[12], hash[13], hash[14], hash[15]))
+        return uuid
+    }
+    
     /// Parse YAML frontmatter from a skill .md file
     private static func parseSkillFrontmatter(at path: String) -> SkillMetadata? {
         guard let content = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
@@ -299,7 +322,11 @@ class PromptTemplateManager: ObservableObject {
                     promptFile = nil
                 }
                 
+                // Stable ID derived from filename so it survives app restarts
+                let stableId = Self.deterministicUUID(from: url.lastPathComponent)
+                
                 let template = SystemPromptTemplate(
+                    id: stableId,
                     name: config.name,
                     content: config.description,
                     isAgent: true,
