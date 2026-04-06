@@ -439,15 +439,34 @@ class ChatViewModel: ObservableObject {
             isProcessingMessage = false
             return
         }
+        
+        // Sanitize history: remove trailing orphaned toolUse/toolResult messages
+        // that may exist from a cancelled mid-tool-execution
+        sanitizeToolHistory()
+        
         let next = pendingMessages.removeFirst()
         logger.info("Processing queued message (remaining: \(pendingMessages.count))")
         userInput = next
         messageTask = Task { await sendMessageAsync() }
     }
     
+    /// Remove trailing messages that would cause toolUse/toolResult mismatch errors
+    private func sanitizeToolHistory() {
+        while let last = messages.last {
+            if last.user == "ToolResult" {
+                messages.removeLast()
+                logger.info("Sanitized orphaned ToolResult message")
+            } else if last.toolUse != nil && last.toolResult == nil {
+                messages.removeLast()
+                logger.info("Sanitized orphaned toolUse message")
+            } else {
+                break
+            }
+        }
+    }
+    
     func cancelSending() {
-        pendingMessages.removeAll()
-        isProcessingMessage = false
+        // Cancel current response — the task's cleanup will call processNextQueuedMessage()
         messageTask?.cancel()
         chatManager.setIsLoading(false, for: chatId)
     }
