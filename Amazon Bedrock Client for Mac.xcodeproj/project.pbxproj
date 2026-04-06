@@ -41,6 +41,7 @@
 		79B37BFB2DA06BB5006A7A62 /* DocumentPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79B37BFA2DA06BB1006A7A62 /* DocumentPreview.swift */; };
 		79BF645F2ACFF8FD00383300 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 79BF645E2ACFF8FD00383300 /* README.md */; };
 		79BFF5102AD342710057BF3A /* ChatManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79BFF50F2AD342710057BF3A /* ChatManager.swift */; };
+		RLLM00000400AABB /* routellm-server.py in Resources */ = {isa = PBXBuildFile; fileRef = RLLM00000300AABB /* routellm-server.py */; };
 		RLLM00000200AABB /* RouteLLMManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = RLLM00000100AABB /* RouteLLMManager.swift */; };
 		B966EC8F52A23215B3677E33 /* MessageRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22CA3D4A8D04A8240E76DF13 /* MessageRouter.swift */; };
 		79C4F01E2C30362100C488C2 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79C4F01D2C30362100C488C2 /* AppDelegate.swift */; };
@@ -133,6 +134,7 @@
 		79B37BFA2DA06BB1006A7A62 /* DocumentPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentPreview.swift; sourceTree = "<group>"; };
 		79BF645E2ACFF8FD00383300 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		79BFF50F2AD342710057BF3A /* ChatManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatManager.swift; sourceTree = "<group>"; };
+		RLLM00000300AABB /* routellm-server.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = "routellm-server.py"; sourceTree = "<group>"; };
 		RLLM00000100AABB /* RouteLLMManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteLLMManager.swift; sourceTree = "<group>"; };
 		22CA3D4A8D04A8240E76DF13 /* MessageRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageRouter.swift; sourceTree = "<group>"; };
 		79C4F01D2C30362100C488C2 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -231,6 +233,7 @@
 				79F2C4012EB0705A003F46E6 /* Bedrock.icon */,
 				79E0AC5E2D63F49F0041829A /* Amazon Bedrock Client for Mac.entitlements */,
 				79610DC22AD22A2F00993D09 /* Assets.xcassets */,
+				RLLM00000300AABB /* routellm-server.py */,
 				79610DBB2AD22A2F00993D09 /* Core */,
 				79610DBF2AD22A2F00993D09 /* Managers */,
 				79610DC92AD22A2F00993D09 /* Models */,
@@ -476,6 +479,7 @@
 				79F2C4022EB0705A003F46E6 /* Bedrock.icon in Resources */,
 				79610DE42AD22A2F00993D09 /* Preview Assets.xcassets in Resources */,
 				79610DDB2AD22A2F00993D09 /* Assets.xcassets in Resources */,
+				RLLM00000400AABB /* routellm-server.py in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
