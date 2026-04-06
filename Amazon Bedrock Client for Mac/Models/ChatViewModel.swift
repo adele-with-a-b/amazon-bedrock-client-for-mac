@@ -1830,9 +1830,29 @@ class ChatViewModel: ObservableObject {
     private func applySlidingWindow(_ messages: [AWSBedrockRuntime.BedrockRuntimeClientTypes.Message]) async -> [AWSBedrockRuntime.BedrockRuntimeClientTypes.Message] {
         guard messages.count > Self.slidingWindowThreshold else { return messages }
         
-        let splitPoint = messages.count - Self.recentWindowSize
+        // Find a clean split point — never split inside a tool cycle.
+        // Walk backwards from the target split to find a user message that has NO toolResult blocks.
+        var splitPoint = messages.count - Self.recentWindowSize
+        while splitPoint > 0 {
+            if let content = messages[splitPoint].content,
+               content.contains(where: { if case .toolresult = $0 { return true }; return false }) {
+                // This is a toolResult message — can't start the recent window here
+                splitPoint -= 1
+            } else if messages[splitPoint].role == .assistant,
+                      let content = messages[splitPoint].content,
+                      content.contains(where: { if case .tooluse = $0 { return true }; return false }) {
+                // This is a toolUse message — the next message is its toolResult, can't split here either
+                splitPoint -= 1
+            } else {
+                break
+            }
+        }
+        
+        // Safety: if we walked all the way back, just send everything
+        guard splitPoint > 0 else { return messages }
+        
         let oldMessages = Array(messages.prefix(splitPoint))
-        let recentMessages = Array(messages.suffix(Self.recentWindowSize))
+        let recentMessages = Array(messages.suffix(messages.count - splitPoint))
         
         logger.info("Sliding window: summarizing \(oldMessages.count) old messages, keeping \(recentMessages.count) recent")
         
