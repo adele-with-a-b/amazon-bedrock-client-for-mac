@@ -384,7 +384,8 @@ struct ChatView: View {
             transcribeManager: transcribeManager,
             sendMessage: viewModel.sendMessage,
             cancelSending: viewModel.cancelSending,
-            modelId: viewModel.chatModel.id
+            modelId: viewModel.chatModel.id,
+            queuedMessageCount: viewModel.queuedMessageCount
         )
     }
     

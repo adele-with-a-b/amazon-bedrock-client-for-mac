@@ -195,6 +195,7 @@ class ChatViewModel: ObservableObject {
     /// Message queue: if user sends while processing, queue it instead of cancelling
     private var pendingMessages: [String] = []
     private var isProcessingMessage = false
+    @Published var queuedMessageCount: Int = 0
     @Published var isStreamingEnabled: Bool = false
     @Published var selectedPlaceholder: String
     @Published var emptyText: String = ""
@@ -425,8 +426,8 @@ class ChatViewModel: ObservableObject {
     /// Queue a message. If idle, process immediately. If busy, queue for later.
     private func enqueueMessage(_ message: String) {
         if isProcessingMessage {
-            // Don't cancel — queue the message for after current completes
             pendingMessages.append(message)
+            queuedMessageCount = pendingMessages.count
             logger.info("Message queued (queue depth: \(pendingMessages.count))")
             return
         }
@@ -437,14 +438,14 @@ class ChatViewModel: ObservableObject {
     private func processNextQueuedMessage() {
         guard !pendingMessages.isEmpty else {
             isProcessingMessage = false
+            queuedMessageCount = 0
             return
         }
         
-        // Sanitize history: remove trailing orphaned toolUse/toolResult messages
-        // that may exist from a cancelled mid-tool-execution
         sanitizeToolHistory()
         
         let next = pendingMessages.removeFirst()
+        queuedMessageCount = pendingMessages.count
         logger.info("Processing queued message (remaining: \(pendingMessages.count))")
         userInput = next
         messageTask = Task { await sendMessageAsync() }

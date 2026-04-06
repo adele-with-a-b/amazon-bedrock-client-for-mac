@@ -39,6 +39,7 @@ struct MessageBarView: View {
     var sendMessage: () async -> Void
     var cancelSending: () -> Void
     var modelId: String
+    var queuedMessageCount: Int = 0
     
     var logger = Logger(label: "MessageBarView")
     
@@ -237,6 +238,16 @@ struct MessageBarView: View {
         .buttonStyle(PlainButtonStyle())
         .disabled(userInput.isEmpty && sharedMediaDataSource.images.isEmpty && sharedMediaDataSource.documents.isEmpty && !isLoading)
         .opacity((userInput.isEmpty && sharedMediaDataSource.images.isEmpty && sharedMediaDataSource.documents.isEmpty && !isLoading) ? 0.6 : 1)
+        .overlay(alignment: .topTrailing) {
+            if queuedMessageCount > 0 {
+                Text("\(queuedMessageCount)")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(width: 18, height: 18)
+                    .background(Circle().fill(Color.orange))
+                    .offset(x: 6, y: -6)
+            }
+        }
         .onChange(of: chatManager.getIsLoading(for: chatID)) { _, newValue in
             isLoading = newValue
         }
