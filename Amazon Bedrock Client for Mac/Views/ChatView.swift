@@ -248,9 +248,27 @@ struct ChatView: View {
     private var messageScrollView: some View {
         GeometryReader { outerGeo in
             ScrollViewReader { proxy in
-                ZStack {
+                ZStack(alignment: .bottomTrailing) {
                     scrollableMessageList(outerGeo: outerGeo, proxy: proxy)
                     enhancedScrollToBottomButton(outerGeo: outerGeo, proxy: proxy)
+                    
+                    // Queue indicator
+                    if viewModel.queuedMessageCount > 0 {
+                        HStack(spacing: 4) {
+                            Image(systemName: "tray.full.fill")
+                                .font(.system(size: 12))
+                            Text("\(viewModel.queuedMessageCount)")
+                                .font(.system(size: 12, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(Color.orange.opacity(0.9)))
+                        .padding(.trailing, 16)
+                        .padding(.bottom, 12)
+                        .transition(.scale.combined(with: .opacity))
+                        .animation(.easeInOut(duration: 0.2), value: viewModel.queuedMessageCount)
+                    }
                 }
                 .onChange(of: searchResult) { _, newResult in
                     jumpToFirstMatch(newResult, proxy: proxy)
@@ -384,8 +402,7 @@ struct ChatView: View {
             transcribeManager: transcribeManager,
             sendMessage: viewModel.sendMessage,
             cancelSending: viewModel.cancelSending,
-            modelId: viewModel.chatModel.id,
-            queuedMessageCount: viewModel.queuedMessageCount
+            modelId: viewModel.chatModel.id
         )
     }
     

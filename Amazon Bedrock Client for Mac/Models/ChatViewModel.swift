@@ -428,6 +428,8 @@ class ChatViewModel: ObservableObject {
         if isProcessingMessage {
             pendingMessages.append(message)
             queuedMessageCount = pendingMessages.count
+            userInput = ""
+            sharedMediaDataSource.clear()
             logger.info("Message queued (queue depth: \(pendingMessages.count))")
             return
         }
